@@ -18,6 +18,9 @@ export default function LegalHomePage() {
         <li>
           <Link href="/legal/plaid">Plaid Data Access Policy</Link>
         </li>
+        <li>
+          <Link href="/legal/data-retention">Data Retention and Disposal Policy</Link>
+        </li>
       </ul>
     </LegalShell>
   );

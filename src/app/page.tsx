@@ -84,6 +84,7 @@ export default function HomePage() {
             <Link href="/legal/privacy">Privacy</Link>
             <Link href="/legal/terms">Terms</Link>
             <Link href="/legal/plaid">Plaid Policy</Link>
+            <Link href="/legal/data-retention">Data Retention</Link>
           </span>
         </footer>
       </div>

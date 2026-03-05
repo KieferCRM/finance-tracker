@@ -46,6 +46,11 @@ export default function PlaidPolicyPage() {
               Terms of Service
             </Link>
           </li>
+          <li>
+            <Link href="/legal/data-retention" style={{ color: "var(--mint)" }}>
+              Data Retention and Disposal Policy
+            </Link>
+          </li>
         </ul>
       </section>
     </LegalShell>
