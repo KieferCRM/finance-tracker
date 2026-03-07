@@ -84,6 +84,45 @@ function dayLabel(isoDate: string): string {
   }).format(date);
 }
 
+function CalendarMascot() {
+  return (
+    <article
+      style={{
+        border: "1px solid var(--line)",
+        borderRadius: 12,
+        background: "var(--surface)",
+        padding: "8px 10px",
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+      }}
+      aria-label="Calendar mascot"
+    >
+      <svg width="36" height="36" viewBox="0 0 64 64" role="img" aria-label="TipTapped mascot">
+        <defs>
+          <linearGradient id="mascotHead" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffbf73" />
+            <stop offset="100%" stopColor="#ff7f50" />
+          </linearGradient>
+        </defs>
+        <circle cx="32" cy="34" r="18" fill="url(#mascotHead)" />
+        <path d="M18 26 L24 10 L31 23 Z" fill="#ff9f5a" />
+        <path d="M46 26 L40 10 L33 23 Z" fill="#ff9f5a" />
+        <circle cx="26" cy="34" r="2.5" fill="#1f2a44" />
+        <circle cx="38" cy="34" r="2.5" fill="#1f2a44" />
+        <ellipse cx="32" cy="42" rx="7.5" ry="5.5" fill="#ffe3c7" />
+        <circle cx="30" cy="41" r="1.2" fill="#1f2a44" />
+        <circle cx="34" cy="41" r="1.2" fill="#1f2a44" />
+        <path d="M31 45 Q32 47 33 45" stroke="#1f2a44" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      </svg>
+      <div style={{ display: "grid", gap: 1, lineHeight: 1.15 }}>
+        <strong style={{ fontSize: 12 }}>Penny</strong>
+        <span style={{ fontSize: 11, color: "var(--muted)" }}>Shift sidekick</span>
+      </div>
+    </article>
+  );
+}
+
 async function fetchCalendarData(month: string): Promise<CalendarData> {
   const normalizedMonth = normalizeMonth(month);
   const previous = previousMonth(normalizedMonth);
@@ -366,7 +405,8 @@ export default function CalendarPage() {
 
   return (
     <main style={{ display: "grid", gap: 12 }}>
-      <section style={{ display: "flex", justifyContent: "flex-end" }}>
+      <section style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+        <CalendarMascot />
         <div style={{ display: "grid", gap: 2, textAlign: "right" }}>
           <strong style={{ fontSize: 22 }}>{monthTitle}</strong>
           <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe calendar left/right to change month</span>
