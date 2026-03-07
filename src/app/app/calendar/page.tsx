@@ -366,30 +366,10 @@ export default function CalendarPage() {
 
   return (
     <main style={{ display: "grid", gap: 12 }}>
-      <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 10, display: "grid", gap: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <div style={{ display: "grid", gap: 2 }}>
-            <strong style={{ fontSize: 22 }}>{monthTitle}</strong>
-            <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe left or right on calendar to change month</span>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={goPreviousMonth}
-            style={{ border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
-            aria-label="Previous month"
-          >
-            {"<"}
-          </button>
-          <button
-            type="button"
-            onClick={goNextMonth}
-            style={{ border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
-            aria-label="Next month"
-          >
-            {">"}
-          </button>
+      <section style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ display: "grid", gap: 2, textAlign: "right" }}>
+          <strong style={{ fontSize: 22 }}>{monthTitle}</strong>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe calendar left/right to change month</span>
         </div>
       </section>
 
@@ -455,7 +435,7 @@ export default function CalendarPage() {
           }}
           style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden", touchAction: "pan-y" }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#189447", color: "#f5fff8" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#2a3654", color: "#f1f5ff" }}>
             {WEEKDAY_LABELS.map((label) => (
               <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
                 {label}
@@ -480,7 +460,7 @@ export default function CalendarPage() {
                   aria-label={`Open ${cell.date}`}
                   style={{
                     border: "none",
-                    background: isActive ? "#1e2e22" : isDayOff ? "#1c2b21" : "var(--surface-2)",
+                    background: isActive ? "#1e2d49" : isDayOff ? "#2e2538" : "var(--surface-2)",
                     color: "var(--text)",
                     minHeight: 88,
                     padding: 6,
@@ -489,7 +469,7 @@ export default function CalendarPage() {
                     alignContent: "space-between",
                     gap: 4,
                     cursor: "pointer",
-                    boxShadow: isToday ? "inset 0 0 0 2px #2cc95f" : "none",
+                    boxShadow: isToday ? "inset 0 0 0 2px var(--neon)" : "none",
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: 20 }}>{cell.day}</div>
@@ -501,8 +481,8 @@ export default function CalendarPage() {
                         style={{
                           fontSize: 10,
                           borderRadius: 999,
-                          background: "#1f3828",
-                          color: "#8ff0b5",
+                          background: "#3a2430",
+                          color: "#ffd2dc",
                           padding: "2px 6px",
                           width: "fit-content",
                           fontWeight: 700,
@@ -545,7 +525,7 @@ export default function CalendarPage() {
                 border: "1px solid var(--line)",
                 borderRadius: 10,
                 padding: "10px 12px",
-                background: isExpandedDayOff ? "#2f2419" : "var(--surface-2)",
+                background: isExpandedDayOff ? "#3a2430" : "var(--surface-2)",
                 color: "var(--text)",
                 fontWeight: 700,
               }}
@@ -563,7 +543,7 @@ export default function CalendarPage() {
                 value={cashTips}
                 onChange={(e) => setCashTips(e.target.value)}
                 placeholder="Cash Tips"
-                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
               />
               <input
                 type="number"
@@ -572,7 +552,7 @@ export default function CalendarPage() {
                 value={cardTips}
                 onChange={(e) => setCardTips(e.target.value)}
                 placeholder="Card Tips"
-                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
               />
             </div>
 
@@ -584,12 +564,12 @@ export default function CalendarPage() {
                 value={hoursWorked}
                 onChange={(e) => setHoursWorked(e.target.value)}
                 placeholder="Hours Worked"
-                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
               />
               <button
                 type="submit"
                 disabled={saving}
-                style={{ border: "none", borderRadius: 10, padding: "12px 16px", background: "#2cc95f", color: "#09200f", fontWeight: 800 }}
+                style={{ border: "none", borderRadius: 10, padding: "12px 16px", background: "var(--neon)", color: "#2a1a00", fontWeight: 800 }}
               >
                 {saving ? "Saving..." : "Save"}
               </button>
@@ -601,7 +581,7 @@ export default function CalendarPage() {
               placeholder="Notes (optional)"
               rows={3}
               maxLength={500}
-              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)", resize: "vertical" }}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", resize: "vertical" }}
             />
           </form>
 
