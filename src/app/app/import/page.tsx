@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 
 type ImportResponse = {
   ok: boolean;
-  format: "combined_export" | "income_sheet" | "expense_sheet";
+  format: "combined_export" | "income_sheet" | "expense_sheet" | "serverlife_shift";
   imported_income: number;
   imported_expense: number;
   skipped_rows: number;
@@ -58,7 +58,7 @@ export default function ImportPage() {
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
         <h1 style={{ margin: "0 0 6px" }}>Import CSV</h1>
         <p style={{ margin: 0, color: "var(--muted)" }}>
-          Upload CSV from Google Sheets or TipTapped export. Imported rows are added directly into your ledger.
+          Upload CSV from ServerLife, Google Sheets, or TipTapped export. Imported rows are added directly into your calendar + ledger.
         </p>
       </section>
 
@@ -98,6 +98,7 @@ export default function ImportPage() {
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
         <h2 style={{ marginTop: 0 }}>Supported CSV Formats</h2>
         <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8, color: "var(--muted)" }}>
+          <li>ServerLife export with date/take-home/hours columns</li>
           <li>TipTapped monthly export (`type,date,...`)</li>
           <li>Google Sheets `income_entries` tab export</li>
           <li>Google Sheets `expense_entries` tab export</li>

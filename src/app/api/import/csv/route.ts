@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
 
-type ImportFormat = "combined_export" | "income_sheet" | "expense_sheet";
+type ImportFormat = "combined_export" | "income_sheet" | "expense_sheet" | "serverlife_shift";
 
 type IncomeCandidate = {
   id?: string;
@@ -19,6 +19,13 @@ type ExpenseCandidate = {
   amount: number;
   note: string | null;
 };
+
+const SERVERLIFE_DATE_FIELDS = ["date", "shift_date", "work_date", "day"];
+const SERVERLIFE_TAKE_HOME_FIELDS = ["take_home", "takehome", "net", "net_tips", "total_tips", "tips", "earnings", "income"];
+const SERVERLIFE_HOURS_FIELDS = ["hours", "hours_worked", "shift_hours", "worked_hours"];
+const SERVERLIFE_CASH_FIELDS = ["cash_tips", "cash", "cash_tip"];
+const SERVERLIFE_CARD_FIELDS = ["card_tips", "credit_tips", "card", "credit"];
+const SERVERLIFE_NOTE_FIELDS = ["note", "notes", "job", "venue", "location", "shift"];
 
 function mapInsertError(message: string): string {
   if (message.includes("_user_id_fkey")) {
@@ -170,6 +177,18 @@ function toUuid(value: string | undefined): string | undefined {
   return undefined;
 }
 
+function hasAnyHeader(headers: string[], candidates: string[]): boolean {
+  return candidates.some((name) => headers.includes(name));
+}
+
+function firstNonEmpty(record: Record<string, string>, candidates: string[]): string | undefined {
+  for (const name of candidates) {
+    const value = (record[name] ?? "").trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
 function detectFormat(headers: string[]): ImportFormat | null {
   const has = (name: string) => headers.includes(name);
   if (has("type") && (has("date") || has("shift_date") || has("expense_date"))) {
@@ -180,6 +199,9 @@ function detectFormat(headers: string[]): ImportFormat | null {
   }
   if (has("expense_date") && has("amount")) {
     return "expense_sheet";
+  }
+  if (hasAnyHeader(headers, SERVERLIFE_DATE_FIELDS) && (hasAnyHeader(headers, SERVERLIFE_TAKE_HOME_FIELDS) || hasAnyHeader(headers, SERVERLIFE_HOURS_FIELDS))) {
+    return "serverlife_shift";
   }
   return null;
 }
@@ -252,7 +274,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Unsupported CSV format. Use TipTapped export CSV, Google Sheet income_entries CSV, or Google Sheet expense_entries CSV.",
+          "Unsupported CSV format. Use TipTapped export CSV, Google Sheet income_entries CSV, Google Sheet expense_entries CSV, or ServerLife CSV with date/take-home/hours columns.",
       },
       { status: 400 }
     );
@@ -342,6 +364,39 @@ export async function POST(request: NextRequest) {
         card_tips: toNumber(record.card_tips),
         hourly_wages: toNumber(record.hours_worked || record.hourly_wages),
         note: (record.note ?? "").trim() || null,
+      });
+      continue;
+    }
+
+    if (format === "serverlife_shift") {
+      const shiftDate = toDate(firstNonEmpty(record, SERVERLIFE_DATE_FIELDS));
+      if (!shiftDate) {
+        skippedRows += 1;
+        continue;
+      }
+
+      const cashTips = toNumber(firstNonEmpty(record, SERVERLIFE_CASH_FIELDS));
+      const cardTips = toNumber(firstNonEmpty(record, SERVERLIFE_CARD_FIELDS));
+      const takeHome = toNumber(firstNonEmpty(record, SERVERLIFE_TAKE_HOME_FIELDS));
+      const hoursWorked = toNumber(firstNonEmpty(record, SERVERLIFE_HOURS_FIELDS));
+      const note = firstNonEmpty(record, SERVERLIFE_NOTE_FIELDS) ?? null;
+
+      const hasTipsBreakdown = cashTips > 0 || cardTips > 0;
+      const mappedCashTips = hasTipsBreakdown ? cashTips : takeHome;
+      const mappedCardTips = hasTipsBreakdown ? cardTips : 0;
+
+      if (mappedCashTips <= 0 && mappedCardTips <= 0 && hoursWorked <= 0 && !note) {
+        skippedRows += 1;
+        continue;
+      }
+
+      incomeCandidates.push({
+        id: toUuid(record.id || record.entry_id),
+        shift_date: shiftDate,
+        cash_tips: mappedCashTips,
+        card_tips: mappedCardTips,
+        hourly_wages: hoursWorked,
+        note,
       });
       continue;
     }
