@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
 import { isDayOffEntry } from "@/lib/calendar";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -339,13 +339,13 @@ export default function CalendarPage() {
     setMonth((current) => nextMonth(current));
   }
 
-  function onCalendarTouchStart(event: React.TouchEvent<HTMLElement>) {
+  function onCalendarTouchStart(event: TouchEvent<HTMLElement>) {
     if (expandedDate) return;
     const touch = event.changedTouches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
   }
 
-  function onCalendarTouchEnd(event: React.TouchEvent<HTMLElement>) {
+  function onCalendarTouchEnd(event: TouchEvent<HTMLElement>) {
     if (expandedDate) return;
     const start = touchStartRef.current;
     touchStartRef.current = null;

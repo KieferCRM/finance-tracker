@@ -34,7 +34,9 @@ function mapInsertError(message: string): string {
   return message;
 }
 
-function parseCsv(text: string): string[][] {
+const CSV_DELIMITERS = [",", ";", "\t", "|"] as const;
+
+function parseCsvWithDelimiter(text: string, delimiter: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let value = "";
@@ -66,7 +68,7 @@ function parseCsv(text: string): string[][] {
       continue;
     }
 
-    if (char === ",") {
+    if (char === delimiter) {
       row.push(value);
       value = "";
       i += 1;
@@ -97,6 +99,57 @@ function parseCsv(text: string): string[][] {
   }
 
   return rows;
+}
+
+function normalizeCsvText(text: string): { content: string; hintedDelimiter: string | null } {
+  const withoutBom = text.replace(/^\uFEFF/, "");
+  const normalized = withoutBom.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n");
+
+  const firstNonEmptyIdx = lines.findIndex((line) => line.trim() !== "");
+  if (firstNonEmptyIdx === -1) return { content: "", hintedDelimiter: null };
+
+  const firstNonEmpty = lines[firstNonEmptyIdx].trim();
+  const separatorMatch = firstNonEmpty.match(/^sep=(.)$/i);
+  if (separatorMatch) {
+    const hintedDelimiter = separatorMatch[1];
+    lines.splice(firstNonEmptyIdx, 1);
+    return { content: lines.join("\n"), hintedDelimiter };
+  }
+
+  return { content: normalized, hintedDelimiter: null };
+}
+
+function parseCsv(text: string): string[][] {
+  const { content, hintedDelimiter } = normalizeCsvText(text);
+  if (!content.trim()) return [];
+
+  const delimiters = hintedDelimiter
+    ? [hintedDelimiter, ...CSV_DELIMITERS.filter((delimiter) => delimiter !== hintedDelimiter)]
+    : [...CSV_DELIMITERS];
+
+  let bestRows: string[][] = [];
+  let bestScore = -Infinity;
+
+  for (const delimiter of delimiters) {
+    const parsed = parseCsvWithDelimiter(content, delimiter);
+    if (parsed.length === 0) continue;
+
+    const headerWidth = parsed[0]?.length ?? 0;
+    const dataRows = Math.max(0, parsed.length - 1);
+    const sampleWidths = parsed.slice(0, 12).map((row) => row.length);
+    const maxWidth = sampleWidths.length > 0 ? Math.max(...sampleWidths) : 0;
+    const minWidth = sampleWidths.length > 0 ? Math.min(...sampleWidths) : 0;
+    const consistencyPenalty = Math.max(0, maxWidth - minWidth);
+
+    const score = (headerWidth > 1 ? 1000 : 0) + headerWidth * 10 + dataRows - consistencyPenalty * 5;
+    if (score > bestScore) {
+      bestScore = score;
+      bestRows = parsed;
+    }
+  }
+
+  return bestRows;
 }
 
 function normalizeHeader(header: string): string {
@@ -259,17 +312,46 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "CSV content is required." }, { status: 400 });
   }
 
-  const parsed = parseCsv(csv);
-  if (parsed.length < 2) {
-    return NextResponse.json({ error: "CSV must include a header row and at least one data row." }, { status: 400 });
+  const parsedRows = parseCsv(csv);
+  if (parsedRows.length < 2) {
+    return NextResponse.json(
+      {
+        error: "CSV must include a header row and at least one data row. If this is a ServerLife export, make sure you uploaded a .csv file (not .xlsx) and re-export with full shift rows.",
+      },
+      { status: 400 }
+    );
   }
 
-  if (parsed.length > 10001) {
+  if (parsedRows.length > 10001) {
     return NextResponse.json({ error: "CSV is too large. Limit is 10,000 data rows per upload." }, { status: 400 });
   }
 
+  let headerRowIndex = 0;
+  let detectedFormat: ImportFormat | null = null;
+  const maxHeaderScan = Math.min(parsedRows.length - 1, 25);
+  for (let i = 0; i < maxHeaderScan; i += 1) {
+    const candidateHeaders = parsedRows[i].map(normalizeHeader);
+    const candidateFormat = detectFormat(candidateHeaders);
+    if (!candidateFormat) continue;
+    const hasDataAfter = parsedRows.slice(i + 1).some((row) => row.some((cell) => cell.trim() !== ""));
+    if (!hasDataAfter) continue;
+    headerRowIndex = i;
+    detectedFormat = candidateFormat;
+    break;
+  }
+
+  const parsed = parsedRows.slice(headerRowIndex);
+  if (parsed.length < 2) {
+    return NextResponse.json(
+      {
+        error: "CSV must include a header row and at least one data row. If this is a ServerLife export, make sure you uploaded a .csv file (not .xlsx) and re-export with full shift rows.",
+      },
+      { status: 400 }
+    );
+  }
+
   const headers = parsed[0].map(normalizeHeader);
-  const format = detectFormat(headers);
+  const format = detectedFormat ?? detectFormat(headers);
   if (!format) {
     return NextResponse.json(
       {
