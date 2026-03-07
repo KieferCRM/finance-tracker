@@ -158,6 +158,7 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [suggestion, setSuggestion] = useState("");
 
   const [cashTips, setCashTips] = useState("");
   const [cardTips, setCardTips] = useState("");
@@ -401,6 +402,12 @@ export default function CalendarPage() {
     goPreviousMonth();
   }
 
+  const suggestionMailTo = useMemo(() => {
+    const subject = encodeURIComponent("TipTapped Suggestion");
+    const body = encodeURIComponent(suggestion.trim());
+    return `mailto:routeflowsystems@gmail.com?subject=${subject}&body=${body}`;
+  }, [suggestion]);
+
   return (
     <main style={{ display: "grid", gap: 12 }}>
       <section style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
@@ -459,6 +466,44 @@ export default function CalendarPage() {
             <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log tips/hours and set Off Day.</div>
           </article>
         ) : null}
+      </section>
+
+      <section
+        style={{
+          border: "1px solid rgba(255, 216, 77, 0.78)",
+          borderRadius: 12,
+          background: "var(--surface)",
+          padding: 12,
+          display: "grid",
+          gap: 8,
+        }}
+      >
+        <div style={{ display: "grid", gap: 2 }}>
+          <strong style={{ color: "var(--neon)" }}>Suggestion Box</strong>
+          <span style={{ color: "var(--muted)", fontSize: 13 }}>Share ideas for new features or improvements.</span>
+        </div>
+        <textarea
+          value={suggestion}
+          onChange={(event) => setSuggestion(event.target.value)}
+          placeholder="What should we add or improve?"
+          rows={3}
+          maxLength={1200}
+          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", resize: "vertical" }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>This opens your email app to send to routeflowsystems@gmail.com.</span>
+          <button
+            type="button"
+            disabled={suggestion.trim().length === 0}
+            onClick={() => {
+              window.location.href = suggestionMailTo;
+              setSuggestion("");
+            }}
+            style={{ border: "none", borderRadius: 10, padding: "10px 14px", background: "var(--neon)", color: "#2b2200", fontWeight: 800 }}
+          >
+            Send Suggestion
+          </button>
+        </div>
       </section>
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
