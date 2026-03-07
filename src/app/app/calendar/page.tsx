@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { isDayOffEntry } from "@/lib/calendar";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -31,27 +30,10 @@ type MonthlyReportResponse = {
   report: MonthReport;
 };
 
-type ScheduleEventRow = {
-  id: string;
-  title: string;
-  location: string | null;
-  notes: string | null;
-  shift_date: string;
-  start_time: string;
-  end_time: string;
-  all_day: boolean;
-  source_name: string | null;
-};
-
-type ScheduleResponse = {
-  rows?: ScheduleEventRow[];
-};
-
 type CalendarData = {
   rows: IncomeRow[];
   currentReport: MonthReport;
   previousReport: MonthReport;
-  scheduleRows: ScheduleEventRow[];
 };
 
 function money(value: number): string {
@@ -102,32 +84,14 @@ function dayLabel(isoDate: string): string {
   }).format(date);
 }
 
-function scheduleTimeLabel(row: ScheduleEventRow): string {
-  if (row.all_day || !row.start_time) return "All day";
-  if (row.end_time) return `${row.start_time} - ${row.end_time}`;
-  return row.start_time;
-}
-
-async function fetchScheduleRows(month: string): Promise<ScheduleEventRow[]> {
-  try {
-    const res = await fetch(`/api/schedule/events?month=${month}`);
-    if (!res.ok) return [];
-    const json = (await res.json().catch(() => ({}))) as ScheduleResponse;
-    return json.rows ?? [];
-  } catch {
-    return [];
-  }
-}
-
 async function fetchCalendarData(month: string): Promise<CalendarData> {
   const normalizedMonth = normalizeMonth(month);
   const previous = previousMonth(normalizedMonth);
 
-  const [incomeRes, currentReportRes, previousReportRes, scheduleRows] = await Promise.all([
+  const [incomeRes, currentReportRes, previousReportRes] = await Promise.all([
     fetch(`/api/income?month=${normalizedMonth}&limit=5000&include_day_off=true`),
     fetch(`/api/report/monthly?month=${normalizedMonth}`),
     fetch(`/api/report/monthly?month=${previous}`),
-    fetchScheduleRows(normalizedMonth),
   ]);
 
   if (!incomeRes.ok || !currentReportRes.ok || !previousReportRes.ok) {
@@ -144,7 +108,6 @@ async function fetchCalendarData(month: string): Promise<CalendarData> {
     rows: incomeJson.rows ?? [],
     currentReport: currentReportJson.report ?? { totalIncome: 0, totalHours: 0 },
     previousReport: previousReportJson.report ?? { totalIncome: 0, totalHours: 0 },
-    scheduleRows,
   };
 }
 
@@ -152,7 +115,6 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(CURRENT_MONTH);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [incomeRows, setIncomeRows] = useState<IncomeRow[]>([]);
-  const [scheduleRows, setScheduleRows] = useState<ScheduleEventRow[]>([]);
   const [currentReport, setCurrentReport] = useState<MonthReport | null>(null);
   const [lastMonthReport, setLastMonthReport] = useState<MonthReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -164,6 +126,7 @@ export default function CalendarPage() {
   const [cardTips, setCardTips] = useState("");
   const [hoursWorked, setHoursWorked] = useState("");
   const [note, setNote] = useState("");
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -177,7 +140,6 @@ export default function CalendarPage() {
         if (!active) return;
 
         setIncomeRows(data.rows);
-        setScheduleRows(data.scheduleRows);
         setCurrentReport(data.currentReport);
         setLastMonthReport(data.previousReport);
       } catch {
@@ -219,21 +181,6 @@ export default function CalendarPage() {
     return totals;
   }, [incomeRows]);
 
-  const scheduleByDate = useMemo(() => {
-    const rowsByDate = new Map<string, ScheduleEventRow[]>();
-    for (const row of scheduleRows) {
-      const current = rowsByDate.get(row.shift_date) ?? [];
-      current.push(row);
-      rowsByDate.set(row.shift_date, current);
-    }
-
-    for (const rows of rowsByDate.values()) {
-      rows.sort((a, b) => a.start_time.localeCompare(b.start_time));
-    }
-
-    return rowsByDate;
-  }, [scheduleRows]);
-
   const computedMonthSummary = useMemo(() => {
     const earnings = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.cash_tips) + Number(row.card_tips)), 0);
     const hours = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.hours_worked)), 0);
@@ -268,7 +215,6 @@ export default function CalendarPage() {
   async function refreshAfterSave() {
     const latest = await fetchCalendarData(month);
     setIncomeRows(latest.rows);
-    setScheduleRows(latest.scheduleRows);
     setCurrentReport(latest.currentReport);
     setLastMonthReport(latest.previousReport);
   }
@@ -367,7 +313,6 @@ export default function CalendarPage() {
   const expandedRows = expandedDate
     ? incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row))
     : [];
-  const expandedScheduleRows = expandedDate ? scheduleByDate.get(expandedDate) ?? [] : [];
   const expandedDayOffRows = expandedDate
     ? incomeRows.filter((row) => row.shift_date === expandedDate && isDayOffEntry(row))
     : [];
@@ -386,64 +331,66 @@ export default function CalendarPage() {
     window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "true");
   }
 
+  function goPreviousMonth() {
+    setMonth((current) => previousMonth(current));
+  }
+
+  function goNextMonth() {
+    setMonth((current) => nextMonth(current));
+  }
+
+  function onCalendarTouchStart(event: React.TouchEvent<HTMLElement>) {
+    if (expandedDate) return;
+    const touch = event.changedTouches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function onCalendarTouchEnd(event: React.TouchEvent<HTMLElement>) {
+    if (expandedDate) return;
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const horizontalSwipe = Math.abs(deltaX) >= 60 && Math.abs(deltaX) > Math.abs(deltaY);
+    if (!horizontalSwipe) return;
+
+    if (deltaX < 0) {
+      goNextMonth();
+      return;
+    }
+    goPreviousMonth();
+  }
+
   return (
     <main style={{ display: "grid", gap: 12 }}>
-      <section
-        style={{
-          borderRadius: 14,
-          padding: 14,
-          background: "linear-gradient(145deg, #22b357 0%, #178745 100%)",
-          color: "#f6fff8",
-          display: "grid",
-          gap: 8,
-          border: "1px solid rgba(255,255,255,0.25)",
-        }}
-      >
+      <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 10, display: "grid", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <strong style={{ fontSize: 20 }}>Calendar</strong>
-          <Link
-            href="/app/schedule"
-            style={{
-              textDecoration: "none",
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.5)",
-              color: "#f6fff8",
-              padding: "7px 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              background: "rgba(0,0,0,0.12)",
-            }}
-          >
-            Sync Schedule
-          </Link>
+          <div style={{ display: "grid", gap: 2 }}>
+            <strong style={{ fontSize: 22 }}>{monthTitle}</strong>
+            <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe left or right on calendar to change month</span>
+          </div>
         </div>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => setMonth(previousMonth(month))}
-            style={{ border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
+            onClick={goPreviousMonth}
+            style={{ border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
             aria-label="Previous month"
           >
             {"<"}
           </button>
-          <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 700, textAlign: "center" }}>{monthTitle}</div>
           <button
             type="button"
-            onClick={() => setMonth(nextMonth(month))}
-            style={{ border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
+            onClick={goNextMonth}
+            style={{ border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
             aria-label="Next month"
           >
             {">"}
           </button>
         </div>
-
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(normalizeMonth(e.target.value))}
-          style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8" }}
-        />
       </section>
 
       <section
@@ -490,7 +437,7 @@ export default function CalendarPage() {
                 Dismiss
               </button>
             </div>
-            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log tips/hours, set Off Day, and check synced shifts.</div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log tips/hours and set Off Day.</div>
           </article>
         ) : null}
       </section>
@@ -500,7 +447,14 @@ export default function CalendarPage() {
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>
       ) : (
-        <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden" }}>
+        <section
+          onTouchStart={onCalendarTouchStart}
+          onTouchEnd={onCalendarTouchEnd}
+          onTouchCancel={() => {
+            touchStartRef.current = null;
+          }}
+          style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden", touchAction: "pan-y" }}
+        >
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#189447", color: "#f5fff8" }}>
             {WEEKDAY_LABELS.map((label) => (
               <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
@@ -514,7 +468,6 @@ export default function CalendarPage() {
               if (!cell) return <div key={`blank-${index}`} style={{ minHeight: 88, background: "#141920" }} />;
 
               const totals = dailyTotals.get(cell.date);
-              const scheduled = scheduleByDate.get(cell.date) ?? [];
               const isToday = cell.date === TODAY;
               const isDayOff = dayOffDates.has(cell.date) && !totals;
               const isActive = expandedDate === cell.date;
@@ -543,21 +496,6 @@ export default function CalendarPage() {
                   <div style={{ display: "grid", gap: 3 }}>
                     {totals ? <span style={{ fontSize: 11, color: "var(--text)" }}>{money(totals.tips)}</span> : null}
                     {totals ? <span style={{ fontSize: 11, color: "var(--muted)" }}>{totals.hours.toFixed(1)}h</span> : null}
-                    {scheduled.length > 0 ? (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          borderRadius: 999,
-                          background: "#1a2230",
-                          color: "#9ec5ff",
-                          padding: "2px 6px",
-                          width: "fit-content",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {scheduled.length} shift{scheduled.length === 1 ? "" : "s"}
-                      </span>
-                    ) : null}
                     {isDayOff ? (
                       <span
                         style={{
@@ -614,20 +552,6 @@ export default function CalendarPage() {
             >
               {isExpandedDayOff ? "Clear Off Day" : "Off Day"}
             </button>
-            <Link
-              href="/app/schedule"
-              style={{
-                textDecoration: "none",
-                border: "1px solid var(--line)",
-                borderRadius: 10,
-                padding: "10px 12px",
-                background: "#16202f",
-                color: "var(--text)",
-                fontWeight: 700,
-              }}
-            >
-              Manage Schedule Sync
-            </Link>
           </div>
 
           <form onSubmit={saveShift} style={{ display: "grid", gap: 8 }}>
@@ -680,24 +604,6 @@ export default function CalendarPage() {
               style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)", resize: "vertical" }}
             />
           </form>
-
-          <section style={{ display: "grid", gap: 6 }}>
-            <strong>Scheduled Shifts</strong>
-            {expandedScheduleRows.length === 0 ? (
-              <div style={{ color: "var(--muted)", fontSize: 14 }}>No synced shifts for this date.</div>
-            ) : (
-              <div style={{ display: "grid", gap: 6 }}>
-                {expandedScheduleRows.map((row) => (
-                  <article key={row.id} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 8, background: "var(--surface-2)", display: "grid", gap: 2 }}>
-                    <div style={{ fontWeight: 700 }}>{row.title}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{scheduleTimeLabel(row)}</div>
-                    {row.location ? <div style={{ color: "var(--muted)", fontSize: 12 }}>{row.location}</div> : null}
-                    {row.source_name ? <div style={{ color: "var(--muted)", fontSize: 12 }}>Source: {row.source_name}</div> : null}
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
 
           <section style={{ display: "grid", gap: 6 }}>
             <strong>Logged Entries</strong>

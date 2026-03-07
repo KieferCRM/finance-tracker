@@ -36,9 +36,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Link href="/app" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
             Calendar
           </Link>
-          <Link href="/app/schedule" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            Schedule
-          </Link>
           <Link href="/app/ledger" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
             Ledger
           </Link>

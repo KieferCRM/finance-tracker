@@ -21,15 +21,14 @@ BarMath for Bartenders: a playful, dark-themed tip-income tracker for servers an
 ## Start Here
 1. Apply SQL in `docs/sql/001_base_schema.sql` to a new Supabase project.
 2. Optional but recommended for bank sync: apply `docs/sql/002_bank_integration_plaid.sql`.
-3. To enable schedule sync from Google/iOS calendars: apply `docs/sql/003_schedule_calendar_sync.sql`.
-4. Copy `.env.example` to `.env.local` and fill values.
-5. Generate an encryption key for bank tokens:
+3. Copy `.env.example` to `.env.local` and fill values.
+4. Generate an encryption key for bank tokens:
    - `openssl rand -base64 32`
    - paste into `BANK_TOKEN_ENCRYPTION_KEY`
-6. Install and run:
+5. Install and run:
    - `npm install`
    - `npm run dev`
-7. Open `http://localhost:3002`.
+6. Open `http://localhost:3002`.
 
 ## Google Sheets Auto Sync
 1. Follow full setup: `docs/google-sheets/setup.md`.
@@ -43,12 +42,6 @@ BarMath for Bartenders: a playful, dark-themed tip-income tracker for servers an
 ## Reports
 - Monthly report page: `/app/report`
 - CSV import page: `/app/import`
-
-## Schedule Sync (Google + iOS)
-- Open `/app/schedule` and paste an iCal URL (`webcal://` or `https://`).
-- Google Calendar: Settings > Integrate calendar > Secret address in iCal format.
-- iCloud/Apple Calendar: share calendar and copy its public iCal URL.
-- Synced shifts appear on the calendar page and in the schedule list.
 
 ## Plaid Setup
 1. Create a Plaid app in Plaid Dashboard.
