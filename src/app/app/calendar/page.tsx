@@ -86,34 +86,36 @@ function dayLabel(isoDate: string): string {
 
 function CalendarMascot() {
   return (
-    <div style={{ width: 68, height: 68, display: "grid", placeItems: "center", filter: "drop-shadow(0 10px 20px rgba(255, 216, 77, 0.32))" }}>
+    <div style={{ width: 68, height: 68, display: "grid", placeItems: "center", filter: "drop-shadow(0 10px 18px rgba(255, 216, 77, 0.35))" }}>
       <svg width="66" height="66" viewBox="0 0 96 96" role="img" aria-label="TipTapped mascot">
         <defs>
-          <linearGradient id="beeBody" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffe872" />
-            <stop offset="100%" stopColor="#f5c400" />
+          <linearGradient id="workerBody" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffef8a" />
+            <stop offset="100%" stopColor="#f0bf00" />
           </linearGradient>
-          <linearGradient id="beeWing" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#f6fbff" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#dbe8ff" stopOpacity="0.7" />
+          <linearGradient id="workerWing" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f6fbff" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#d3e3ff" stopOpacity="0.65" />
           </linearGradient>
         </defs>
-        <ellipse cx="35" cy="43" rx="12" ry="16" fill="url(#beeWing)" transform="rotate(-28 35 43)" />
-        <ellipse cx="61" cy="43" rx="12" ry="16" fill="url(#beeWing)" transform="rotate(28 61 43)" />
-        <circle cx="48" cy="37" r="11" fill="#1f2a44" />
-        <path d="M42 28 q-5 -10 -13 -11" stroke="#1f2a44" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <path d="M54 28 q5 -10 13 -11" stroke="#1f2a44" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <circle cx="28.5" cy="16.5" r="2.6" fill="#f5c400" />
-        <circle cx="67.5" cy="16.5" r="2.6" fill="#f5c400" />
-        <path d="M39 33 h18 l-2 -6 h-14 z" fill="#ffd84d" />
-        <ellipse cx="48" cy="56" rx="19" ry="16" fill="url(#beeBody)" />
-        <rect x="31" y="49" width="34" height="5" rx="2.5" fill="#1f2a44" />
-        <rect x="31" y="57" width="34" height="5" rx="2.5" fill="#1f2a44" />
-        <rect x="33" y="65" width="30" height="4.5" rx="2.25" fill="#1f2a44" />
-        <circle cx="44" cy="37" r="1.8" fill="#f5f9ff" />
-        <circle cx="52" cy="37" r="1.8" fill="#f5f9ff" />
-        <path d="M44 41 q4 3 8 0" stroke="#f5f9ff" strokeWidth="1.7" fill="none" strokeLinecap="round" />
-        <path d="M43 70 l-6 8 M53 70 l6 8" stroke="#1f2a44" strokeWidth="2" strokeLinecap="round" />
+        <path d="M26 70 l7 -12 h14 l7 12 z" fill="#20304c" />
+        <ellipse cx="35" cy="40" rx="11" ry="15" fill="url(#workerWing)" transform="rotate(-22 35 40)" />
+        <ellipse cx="61" cy="40" rx="11" ry="15" fill="url(#workerWing)" transform="rotate(22 61 40)" />
+        <ellipse cx="48" cy="55" rx="19" ry="16" fill="url(#workerBody)" />
+        <rect x="31" y="49" width="34" height="4.5" rx="2.25" fill="#1f2a44" />
+        <rect x="31" y="57" width="34" height="4.5" rx="2.25" fill="#1f2a44" />
+        <rect x="33" y="64.5" width="30" height="4" rx="2" fill="#1f2a44" />
+        <circle cx="48" cy="34" r="11" fill="#1f2a44" />
+        <path d="M39 29 h18 l-2 -5 h-14 z" fill="#ffe05e" />
+        <circle cx="44" cy="33.5" r="1.7" fill="#f5f9ff" />
+        <circle cx="52" cy="33.5" r="1.7" fill="#f5f9ff" />
+        <path d="M44 37 q4 2.8 8 0" stroke="#f5f9ff" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <path d="M42 24 q-4 -8 -10 -9" stroke="#1f2a44" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+        <path d="M54 24 q4 -8 10 -9" stroke="#1f2a44" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+        <circle cx="31.5" cy="14.8" r="2.3" fill="#ffd84d" />
+        <circle cx="64.5" cy="14.8" r="2.3" fill="#ffd84d" />
+        <path d="M56 70 l7 5" stroke="#1f2a44" strokeWidth="2.4" strokeLinecap="round" />
+        <circle cx="64.5" cy="76" r="2.6" fill="#ffe98e" stroke="#1f2a44" strokeWidth="1.2" />
       </svg>
     </div>
   );
