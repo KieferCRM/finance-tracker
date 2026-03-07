@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { isDayOffEntry } from "@/lib/calendar";
 
 const TODAY = new Date().toISOString().slice(0, 10);
 const CURRENT_MONTH = TODAY.slice(0, 7);
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ONBOARDING_DISMISSED_KEY = "tiptab_onboarding_dismissed_v1";
 
 type IncomeRow = {
@@ -30,10 +31,27 @@ type MonthlyReportResponse = {
   report: MonthReport;
 };
 
+type ScheduleEventRow = {
+  id: string;
+  title: string;
+  location: string | null;
+  notes: string | null;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  all_day: boolean;
+  source_name: string | null;
+};
+
+type ScheduleResponse = {
+  rows?: ScheduleEventRow[];
+};
+
 type CalendarData = {
   rows: IncomeRow[];
   currentReport: MonthReport;
   previousReport: MonthReport;
+  scheduleRows: ScheduleEventRow[];
 };
 
 function money(value: number): string {
@@ -56,6 +74,14 @@ function previousMonth(month: string): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+function nextMonth(month: string): string {
+  const normalized = normalizeMonth(month);
+  const [yearStr, monthStr] = normalized.split("-");
+  const date = new Date(Date.UTC(Number(yearStr), Number(monthStr) - 1, 1));
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 function monthLabel(month: string): string {
   const normalized = normalizeMonth(month);
   const [yearStr, monthStr] = normalized.split("-");
@@ -67,14 +93,41 @@ function monthLabel(month: string): string {
   }).format(date);
 }
 
+function dayLabel(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00`);
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
+function scheduleTimeLabel(row: ScheduleEventRow): string {
+  if (row.all_day || !row.start_time) return "All day";
+  if (row.end_time) return `${row.start_time} - ${row.end_time}`;
+  return row.start_time;
+}
+
+async function fetchScheduleRows(month: string): Promise<ScheduleEventRow[]> {
+  try {
+    const res = await fetch(`/api/schedule/events?month=${month}`);
+    if (!res.ok) return [];
+    const json = (await res.json().catch(() => ({}))) as ScheduleResponse;
+    return json.rows ?? [];
+  } catch {
+    return [];
+  }
+}
+
 async function fetchCalendarData(month: string): Promise<CalendarData> {
   const normalizedMonth = normalizeMonth(month);
   const previous = previousMonth(normalizedMonth);
 
-  const [incomeRes, currentReportRes, previousReportRes] = await Promise.all([
+  const [incomeRes, currentReportRes, previousReportRes, scheduleRows] = await Promise.all([
     fetch(`/api/income?month=${normalizedMonth}&limit=5000&include_day_off=true`),
     fetch(`/api/report/monthly?month=${normalizedMonth}`),
     fetch(`/api/report/monthly?month=${previous}`),
+    fetchScheduleRows(normalizedMonth),
   ]);
 
   if (!incomeRes.ok || !currentReportRes.ok || !previousReportRes.ok) {
@@ -91,6 +144,7 @@ async function fetchCalendarData(month: string): Promise<CalendarData> {
     rows: incomeJson.rows ?? [],
     currentReport: currentReportJson.report ?? { totalIncome: 0, totalHours: 0 },
     previousReport: previousReportJson.report ?? { totalIncome: 0, totalHours: 0 },
+    scheduleRows,
   };
 }
 
@@ -98,6 +152,7 @@ export default function CalendarPage() {
   const [month, setMonth] = useState(CURRENT_MONTH);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [incomeRows, setIncomeRows] = useState<IncomeRow[]>([]);
+  const [scheduleRows, setScheduleRows] = useState<ScheduleEventRow[]>([]);
   const [currentReport, setCurrentReport] = useState<MonthReport | null>(null);
   const [lastMonthReport, setLastMonthReport] = useState<MonthReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,6 +177,7 @@ export default function CalendarPage() {
         if (!active) return;
 
         setIncomeRows(data.rows);
+        setScheduleRows(data.scheduleRows);
         setCurrentReport(data.currentReport);
         setLastMonthReport(data.previousReport);
       } catch {
@@ -163,6 +219,21 @@ export default function CalendarPage() {
     return totals;
   }, [incomeRows]);
 
+  const scheduleByDate = useMemo(() => {
+    const rowsByDate = new Map<string, ScheduleEventRow[]>();
+    for (const row of scheduleRows) {
+      const current = rowsByDate.get(row.shift_date) ?? [];
+      current.push(row);
+      rowsByDate.set(row.shift_date, current);
+    }
+
+    for (const rows of rowsByDate.values()) {
+      rows.sort((a, b) => a.start_time.localeCompare(b.start_time));
+    }
+
+    return rowsByDate;
+  }, [scheduleRows]);
+
   const computedMonthSummary = useMemo(() => {
     const earnings = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.cash_tips) + Number(row.card_tips)), 0);
     const hours = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.hours_worked)), 0);
@@ -183,10 +254,9 @@ export default function CalendarPage() {
     const monthIndex = Number(monthStr) - 1;
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
     const firstDay = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay();
-    const mondayFirstOffset = firstDay === 0 ? 6 : firstDay - 1;
 
     const cells: Array<{ day: number; date: string } | null> = [];
-    for (let i = 0; i < mondayFirstOffset; i += 1) cells.push(null);
+    for (let i = 0; i < firstDay; i += 1) cells.push(null);
     for (let day = 1; day <= daysInMonth; day += 1) {
       cells.push({ day, date: dayCellDate(month, day) });
     }
@@ -198,6 +268,7 @@ export default function CalendarPage() {
   async function refreshAfterSave() {
     const latest = await fetchCalendarData(month);
     setIncomeRows(latest.rows);
+    setScheduleRows(latest.scheduleRows);
     setCurrentReport(latest.currentReport);
     setLastMonthReport(latest.previousReport);
   }
@@ -253,12 +324,10 @@ export default function CalendarPage() {
 
     try {
       if (offRows.length > 0) {
-        const results = await Promise.all(
-          offRows.map((row) => fetch(`/api/income/${row.id}`, { method: "DELETE" }))
-        );
+        const results = await Promise.all(offRows.map((row) => fetch(`/api/income/${row.id}`, { method: "DELETE" })));
 
         if (results.some((res) => !res.ok)) {
-          setError("Failed to unmark day off.");
+          setError("Failed to clear off day.");
           return;
         }
       } else {
@@ -275,17 +344,17 @@ export default function CalendarPage() {
         });
         if (!res.ok) {
           const json = (await res.json().catch(() => ({}))) as { error?: string };
-          setError(json.error ?? "Failed to mark day off.");
+          setError(json.error ?? "Failed to set off day.");
           return;
         }
       }
 
       setExpandedDate(null);
       void refreshAfterSave().catch(() => {
-        setError("Day off saved, but failed to refresh calendar. Refresh the page.");
+        setError("Off day saved, but failed to refresh calendar. Refresh the page.");
       });
     } catch {
-      setError("Failed to update day off.");
+      setError("Failed to update off day.");
     } finally {
       setSaving(false);
     }
@@ -295,20 +364,22 @@ export default function CalendarPage() {
     ? dailyTotals.get(expandedDate) ?? { tips: 0, hours: 0, count: 0 }
     : { tips: 0, hours: 0, count: 0 };
 
+  const expandedRows = expandedDate
+    ? incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row))
+    : [];
+  const expandedScheduleRows = expandedDate ? scheduleByDate.get(expandedDate) ?? [] : [];
   const expandedDayOffRows = expandedDate
     ? incomeRows.filter((row) => row.shift_date === expandedDate && isDayOffEntry(row))
     : [];
   const isExpandedDayOff = expandedDayOffRows.length > 0;
-  const expandedRows = expandedDate
-    ? incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row))
-    : [];
-  const expandedDay = expandedDate ? Number(expandedDate.slice(8, 10)) : null;
+
   const monthTitle = monthLabel(month);
   const previousMonthValue = previousMonth(month);
   const previousMonthTitle = monthLabel(previousMonthValue);
 
   const currentMonthEarnings = currentReport?.totalIncome ?? computedMonthSummary.earnings;
   const currentMonthHours = currentReport?.totalHours ?? computedMonthSummary.hours;
+  const takeHomePerHour = currentMonthHours > 0 ? currentMonthEarnings / currentMonthHours : 0;
 
   function dismissOnboarding() {
     setShowOnboarding(false);
@@ -316,82 +387,137 @@ export default function CalendarPage() {
   }
 
   return (
-    <main style={{ display: "grid", gap: 14 }}>
-      <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-        <div>
-          <h1 style={{ margin: "0 0 6px" }}>Shift Calendar</h1>
-          <div style={{ color: "var(--muted)" }}>Click a date to add tips + hours for that shift.</div>
+    <main style={{ display: "grid", gap: 12 }}>
+      <section
+        style={{
+          borderRadius: 14,
+          padding: 14,
+          background: "linear-gradient(145deg, #31cc63 0%, #18a947 100%)",
+          color: "#f6fff8",
+          display: "grid",
+          gap: 8,
+          border: "1px solid rgba(255,255,255,0.25)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <strong style={{ fontSize: 20 }}>Calendar</strong>
+          <Link
+            href="/app/schedule"
+            style={{
+              textDecoration: "none",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.5)",
+              color: "#f6fff8",
+              padding: "7px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              background: "rgba(0,0,0,0.12)",
+            }}
+          >
+            Sync Schedule
+          </Link>
         </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setMonth(previousMonth(month))}
+            style={{ border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
+            aria-label="Previous month"
+          >
+            {"<"}
+          </button>
+          <div style={{ fontSize: 34, lineHeight: 1, fontWeight: 700, textAlign: "center" }}>{monthTitle}</div>
+          <button
+            type="button"
+            onClick={() => setMonth(nextMonth(month))}
+            style={{ border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8", borderRadius: 10, padding: "8px 10px", minWidth: 44 }}
+            aria-label="Next month"
+          >
+            {">"}
+          </button>
+        </div>
+
         <input
           type="month"
           value={month}
           onChange={(e) => setMonth(normalizeMonth(e.target.value))}
-          style={{ padding: 10, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)" }}
+          style={{ padding: 10, borderRadius: 10, border: "1px solid rgba(255,255,255,0.45)", background: "rgba(0,0,0,0.12)", color: "#f6fff8" }}
         />
       </section>
 
-      {showOnboarding ? (
-        <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "#132119", padding: 12, display: "grid", gap: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-            <strong>Quick Start</strong>
-            <button
-              type="button"
-              onClick={dismissOnboarding}
-              style={{ border: "1px solid var(--line)", borderRadius: 8, background: "transparent", color: "var(--text)", padding: "5px 8px" }}
-            >
-              Dismiss
-            </button>
-          </div>
-          <div style={{ color: "var(--muted)", fontSize: 14 }}>
-            Tap a date to log your shift, mark off-days, and keep monthly totals accurate.
-          </div>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6, color: "var(--muted)", fontSize: 13 }}>
-            <li>Use “Mark Day Off” when you are not working.</li>
-            <li>Log cash tips, card tips, and hours after each shift.</li>
-            <li>Check report page monthly and export a CSV backup.</li>
-          </ul>
-        </section>
-      ) : null}
+      <section
+        style={{
+          border: "1px solid #c9d0d8",
+          borderRadius: 12,
+          background: "#f0f2f5",
+          color: "#171c24",
+          padding: 10,
+          display: "grid",
+          gap: 10,
+        }}
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
+            <div style={{ fontSize: 11, color: "#4f5a67" }}>Take Home</div>
+            <div style={{ fontWeight: 700 }}>{money(currentMonthEarnings)}</div>
+          </article>
+          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
+            <div style={{ fontSize: 11, color: "#4f5a67" }}>Hours</div>
+            <div style={{ fontWeight: 700 }}>{currentMonthHours.toFixed(2)}</div>
+          </article>
+          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
+            <div style={{ fontSize: 11, color: "#4f5a67" }}>Take Home / Hour</div>
+            <div style={{ fontWeight: 700 }}>{money(takeHomePerHour)}</div>
+          </article>
+        </div>
+
+        <article style={{ background: "#ffffff", borderRadius: 10, padding: 10, border: "1px solid #d7dde4" }}>
+          <div style={{ fontSize: 12, color: "#4f5a67" }}>{previousMonthTitle} Snapshot</div>
+          <div style={{ fontWeight: 700 }}>Earnings: {money(lastMonthReport?.totalIncome ?? 0)}</div>
+          <div style={{ fontSize: 13, color: "#4f5a67" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
+        </article>
+
+        {showOnboarding ? (
+          <article style={{ background: "#ffffff", borderRadius: 10, padding: 10, border: "1px solid #d7dde4", display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <strong>Quick Start</strong>
+              <button
+                type="button"
+                onClick={dismissOnboarding}
+                style={{ border: "1px solid #d1d7e0", borderRadius: 8, background: "#f7f8fa", padding: "5px 8px", color: "#27313e" }}
+              >
+                Dismiss
+              </button>
+            </div>
+            <div style={{ color: "#4f5a67", fontSize: 13 }}>Tap a date to log tips/hours, set Off Day, and check synced shifts.</div>
+          </article>
+        ) : null}
+      </section>
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
 
-      <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
-        <article style={{ border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)", padding: 12 }}>
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>{monthTitle} Earnings</div>
-          <div style={{ fontSize: 24, fontWeight: 800 }}>{money(currentMonthEarnings)}</div>
-        </article>
-
-        <article style={{ border: "1px solid var(--line)", borderRadius: 10, background: "var(--surface-2)", padding: 12 }}>
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>{monthTitle} Hours Worked</div>
-          <div style={{ fontSize: 24, fontWeight: 800 }}>{currentMonthHours.toFixed(1)} hrs</div>
-        </article>
-
-        <article style={{ border: "1px solid var(--line)", borderRadius: 10, background: "#141c26", padding: 12, display: "grid", gap: 6 }}>
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>{previousMonthTitle} Snapshot</div>
-          <div style={{ fontWeight: 700 }}>Earnings: {money(lastMonthReport?.totalIncome ?? 0)}</div>
-          <div style={{ color: "var(--muted)" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
-        </article>
-      </section>
-
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>
-      ) : !expandedDate ? (
-        <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14, display: "grid", gap: 8 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6 }}>
+      ) : (
+        <section style={{ border: "1px solid #c9d0d8", borderRadius: 12, background: "#f0f2f5", color: "#171c24", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#2dc85e", color: "#f5fff8" }}>
             {WEEKDAY_LABELS.map((label) => (
-              <div key={label} style={{ color: "var(--muted)", fontSize: 12, textAlign: "center" }}>
+              <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
                 {label}
               </div>
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 6 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 1, background: "#d7dde4" }}>
             {monthGrid.map((cell, index) => {
-              if (!cell) return <div key={`blank-${index}`} />;
+              if (!cell) return <div key={`blank-${index}`} style={{ minHeight: 88, background: "#f4f5f7" }} />;
 
               const totals = dailyTotals.get(cell.date);
+              const scheduled = scheduleByDate.get(cell.date) ?? [];
               const isToday = cell.date === TODAY;
               const isDayOff = dayOffDates.has(cell.date) && !totals;
+              const isActive = expandedDate === cell.date;
 
               return (
                 <button
@@ -400,164 +526,196 @@ export default function CalendarPage() {
                   onClick={() => setExpandedDate(cell.date)}
                   aria-label={`Open ${cell.date}`}
                   style={{
-                    border: isToday ? "1px solid var(--neon)" : "1px solid var(--line)",
-                    borderRadius: 10,
-                    background: "var(--surface-2)",
-                    color: "var(--text)",
-                    minHeight: 118,
-                    padding: 8,
+                    border: "none",
+                    background: isActive ? "#ddf7e5" : isDayOff ? "#d2f0dc" : "#ffffff",
+                    color: "#171c24",
+                    minHeight: 88,
+                    padding: 6,
                     textAlign: "left",
                     display: "grid",
+                    alignContent: "space-between",
                     gap: 4,
                     cursor: "pointer",
+                    boxShadow: isToday ? "inset 0 0 0 2px #1fb856" : "none",
                   }}
                 >
-                  <strong>{cell.day}</strong>
-                  <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                    Tips: {totals ? money(totals.tips) : "--"}
-                  </span>
-                  <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                    Hrs: {totals ? totals.hours.toFixed(1) : "--"}
-                  </span>
-                  {isDayOff ? <span style={{ color: "var(--amber)", fontSize: 12, fontWeight: 700 }}>Day Off</span> : null}
+                  <div style={{ fontWeight: 700, fontSize: 20 }}>{cell.day}</div>
+                  <div style={{ display: "grid", gap: 3 }}>
+                    {totals ? <span style={{ fontSize: 11, color: "#2a3644" }}>{money(totals.tips)}</span> : null}
+                    {totals ? <span style={{ fontSize: 11, color: "#4f5a67" }}>{totals.hours.toFixed(1)}h</span> : null}
+                    {scheduled.length > 0 ? (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          borderRadius: 999,
+                          background: "#e6f0ff",
+                          color: "#1d4ed8",
+                          padding: "2px 6px",
+                          width: "fit-content",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {scheduled.length} shift{scheduled.length === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                    {isDayOff ? (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          borderRadius: 999,
+                          background: "#e8f7ec",
+                          color: "#15763a",
+                          padding: "2px 6px",
+                          width: "fit-content",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Off Day
+                      </span>
+                    ) : null}
+                  </div>
                 </button>
               );
             })}
           </div>
         </section>
-      ) : (
-        <section
-          onClick={() => setExpandedDate(null)}
-          style={{
-            border: "1px solid var(--line)",
-            borderRadius: 12,
-            background: "var(--surface)",
-            padding: 10,
-            minHeight: "72vh",
-            display: "grid",
-          }}
-        >
-          <article
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              border: "1px solid var(--neon)",
-              borderRadius: 14,
-              background: "#11161d",
-              padding: 14,
-              display: "grid",
-              gap: 12,
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-              <h2 style={{ margin: 0 }}>Day {expandedDay}</h2>
-              <button
-                type="button"
-                onClick={() => setExpandedDate(null)}
-                style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface-2)", color: "var(--text)", padding: "6px 10px" }}
-              >
-                Back To Calendar
-              </button>
-            </div>
-
-            <div style={{ color: "var(--muted)", fontSize: 14 }}>
-              {expandedDate} • Tips {money(expandedTotals.tips)} • Hours {expandedTotals.hours.toFixed(1)}
-            </div>
-
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void toggleDayOff()}
-                style={{
-                  border: "1px solid var(--line)",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  background: isExpandedDayOff ? "#35261c" : "var(--surface-2)",
-                  color: "var(--text)",
-                  fontWeight: 700,
-                }}
-              >
-                {isExpandedDayOff ? "Unmark Day Off" : "Mark Day Off"}
-              </button>
-            </div>
-
-            <form onSubmit={saveShift} style={{ display: "grid", gap: 8 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={cashTips}
-                  onChange={(e) => setCashTips(e.target.value)}
-                  placeholder="Cash Tips"
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={cardTips}
-                  onChange={(e) => setCardTips(e.target.value)}
-                  placeholder="Card Tips"
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
-                />
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
-                <input
-                  type="number"
-                  step="0.25"
-                  min="0"
-                  value={hoursWorked}
-                  onChange={(e) => setHoursWorked(e.target.value)}
-                  placeholder="Hours Worked"
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
-                />
-                <button
-                  type="submit"
-                  disabled={saving}
-                  style={{ border: "none", borderRadius: 8, padding: "10px 14px", background: "var(--neon)", color: "#111", fontWeight: 800 }}
-                >
-                  {saving ? "Saving..." : "Save Shift"}
-                </button>
-              </div>
-
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>At least one field (tips or hours) must be greater than 0.</div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <label htmlFor="shift-note" style={{ color: "var(--muted)", fontSize: 12 }}>
-                  Notes
-                </label>
-                <textarea
-                  id="shift-note"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Shift notes (optional)"
-                  rows={3}
-                  maxLength={500}
-                  style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #425264", background: "#0e1319", color: "var(--text)", resize: "vertical" }}
-                />
-              </div>
-            </form>
-
-            <div style={{ display: "grid", gap: 8 }}>
-              <strong>Entries</strong>
-              {expandedRows.length === 0 ? (
-                <div style={{ color: "var(--muted)" }}>No entries for this day yet.</div>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
-                  {expandedRows.map((row) => (
-                    <li key={row.id}>
-                      {money(Number(row.cash_tips) + Number(row.card_tips))} • {Number(row.hours_worked).toFixed(1)} hrs
-                      {row.note ? ` • ${row.note}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </article>
-        </section>
       )}
+
+      {expandedDate ? (
+        <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12, display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+            <strong style={{ fontSize: 18 }}>{dayLabel(expandedDate)}</strong>
+            <button
+              type="button"
+              onClick={() => setExpandedDate(null)}
+              style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface-2)", color: "var(--text)", padding: "7px 10px" }}
+            >
+              Close
+            </button>
+          </div>
+
+          <div style={{ color: "var(--muted)", fontSize: 14 }}>
+            Logged: {money(expandedTotals.tips)} and {expandedTotals.hours.toFixed(1)} hrs
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void toggleDayOff()}
+              style={{
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: isExpandedDayOff ? "#2f2419" : "var(--surface-2)",
+                color: "var(--text)",
+                fontWeight: 700,
+              }}
+            >
+              {isExpandedDayOff ? "Clear Off Day" : "Off Day"}
+            </button>
+            <Link
+              href="/app/schedule"
+              style={{
+                textDecoration: "none",
+                border: "1px solid var(--line)",
+                borderRadius: 10,
+                padding: "10px 12px",
+                background: "#16202f",
+                color: "var(--text)",
+                fontWeight: 700,
+              }}
+            >
+              Manage Schedule Sync
+            </Link>
+          </div>
+
+          <form onSubmit={saveShift} style={{ display: "grid", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={cashTips}
+                onChange={(e) => setCashTips(e.target.value)}
+                placeholder="Cash Tips"
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={cardTips}
+                onChange={(e) => setCardTips(e.target.value)}
+                placeholder="Card Tips"
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+              <input
+                type="number"
+                step="0.25"
+                min="0"
+                value={hoursWorked}
+                onChange={(e) => setHoursWorked(e.target.value)}
+                placeholder="Hours Worked"
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)" }}
+              />
+              <button
+                type="submit"
+                disabled={saving}
+                style={{ border: "none", borderRadius: 10, padding: "12px 16px", background: "#2cc95f", color: "#09200f", fontWeight: 800 }}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Notes (optional)"
+              rows={3}
+              maxLength={500}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #425264", background: "#0e1319", color: "var(--text)", resize: "vertical" }}
+            />
+          </form>
+
+          <section style={{ display: "grid", gap: 6 }}>
+            <strong>Scheduled Shifts</strong>
+            {expandedScheduleRows.length === 0 ? (
+              <div style={{ color: "var(--muted)", fontSize: 14 }}>No synced shifts for this date.</div>
+            ) : (
+              <div style={{ display: "grid", gap: 6 }}>
+                {expandedScheduleRows.map((row) => (
+                  <article key={row.id} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: 8, background: "var(--surface-2)", display: "grid", gap: 2 }}>
+                    <div style={{ fontWeight: 700 }}>{row.title}</div>
+                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{scheduleTimeLabel(row)}</div>
+                    {row.location ? <div style={{ color: "var(--muted)", fontSize: 12 }}>{row.location}</div> : null}
+                    {row.source_name ? <div style={{ color: "var(--muted)", fontSize: 12 }}>Source: {row.source_name}</div> : null}
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section style={{ display: "grid", gap: 6 }}>
+            <strong>Logged Entries</strong>
+            {expandedRows.length === 0 ? (
+              <div style={{ color: "var(--muted)", fontSize: 14 }}>No entries for this day yet.</div>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 5 }}>
+                {expandedRows.map((row) => (
+                  <li key={row.id}>
+                    {money(Number(row.cash_tips) + Number(row.card_tips))} - {Number(row.hours_worked).toFixed(1)} hrs
+                    {row.note ? ` - ${row.note}` : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </section>
+      ) : null}
     </main>
   );
 }

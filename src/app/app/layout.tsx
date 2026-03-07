@@ -26,22 +26,35 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <header style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+    <div style={{ padding: 12, maxWidth: 780, margin: "0 auto" }}>
+      <header style={{ display: "grid", gap: 10, marginBottom: 14 }}>
         <div style={{ display: "grid", gap: 2 }}>
           <div style={{ fontWeight: 800 }}>TIPTAPPED</div>
           <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: 0.2 }}>BarMath for Bartenders</div>
         </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link href="/app">Calendar</Link>
-          <Link href="/app/ledger">Ledger</Link>
-          <Link href="/app/import">Import</Link>
-          <Link href="/app/history">History</Link>
-          <Link href="/app/report">Report</Link>
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+          <Link href="/app" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            Calendar
+          </Link>
+          <Link href="/app/schedule" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            Schedule
+          </Link>
+          <Link href="/app/ledger" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            Ledger
+          </Link>
+          <Link href="/app/import" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            Import
+          </Link>
+          <Link href="/app/history" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            History
+          </Link>
+          <Link href="/app/report" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
+            Report
+          </Link>
           <button
             onClick={() => void logout()}
             disabled={loggingOut}
-            style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface-2)", color: "var(--text)", padding: "6px 10px" }}
+            style={{ border: "1px solid var(--line)", borderRadius: 999, background: "var(--surface-2)", color: "var(--text)", padding: "7px 12px", whiteSpace: "nowrap" }}
           >
             {loggingOut ? "Logging out..." : "Logout"}
           </button>
