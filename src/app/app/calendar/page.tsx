@@ -86,40 +86,33 @@ function dayLabel(isoDate: string): string {
 
 function CalendarMascot() {
   return (
-    <article
-      style={{
-        border: "1px solid var(--line)",
-        borderRadius: 12,
-        background: "var(--surface)",
-        padding: "8px 10px",
-        display: "flex",
-        gap: 8,
-        alignItems: "center",
-      }}
-      aria-label="Calendar mascot"
-    >
-      <svg width="36" height="36" viewBox="0 0 64 64" role="img" aria-label="TipTapped mascot">
+    <div style={{ width: 68, height: 68, display: "grid", placeItems: "center", filter: "drop-shadow(0 10px 20px rgba(255, 127, 80, 0.25))" }}>
+      <svg width="66" height="66" viewBox="0 0 96 96" role="img" aria-label="TipTapped mascot">
         <defs>
-          <linearGradient id="mascotHead" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffbf73" />
-            <stop offset="100%" stopColor="#ff7f50" />
+          <linearGradient id="mascotFur" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ffc684" />
+            <stop offset="100%" stopColor="#ff8359" />
+          </linearGradient>
+          <linearGradient id="mascotApron" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#202f4a" />
+            <stop offset="100%" stopColor="#111b30" />
           </linearGradient>
         </defs>
-        <circle cx="32" cy="34" r="18" fill="url(#mascotHead)" />
-        <path d="M18 26 L24 10 L31 23 Z" fill="#ff9f5a" />
-        <path d="M46 26 L40 10 L33 23 Z" fill="#ff9f5a" />
-        <circle cx="26" cy="34" r="2.5" fill="#1f2a44" />
-        <circle cx="38" cy="34" r="2.5" fill="#1f2a44" />
-        <ellipse cx="32" cy="42" rx="7.5" ry="5.5" fill="#ffe3c7" />
-        <circle cx="30" cy="41" r="1.2" fill="#1f2a44" />
-        <circle cx="34" cy="41" r="1.2" fill="#1f2a44" />
-        <path d="M31 45 Q32 47 33 45" stroke="#1f2a44" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+        <path d="M29 27 L38 11 L46 25 Z" fill="#ff9d67" />
+        <path d="M67 27 L58 11 L50 25 Z" fill="#ff9d67" />
+        <circle cx="48" cy="39" r="23" fill="url(#mascotFur)" />
+        <circle cx="39" cy="38" r="3" fill="#1b263b" />
+        <circle cx="57" cy="38" r="3" fill="#1b263b" />
+        <ellipse cx="48" cy="49" rx="10.5" ry="8" fill="#ffe6cf" />
+        <circle cx="45.5" cy="48" r="1.3" fill="#1b263b" />
+        <circle cx="50.5" cy="48" r="1.3" fill="#1b263b" />
+        <path d="M45 54 Q48 57 51 54" stroke="#1b263b" strokeWidth="1.7" fill="none" strokeLinecap="round" />
+        <path d="M29 62 Q48 76 67 62 L61 88 H35 Z" fill="url(#mascotApron)" />
+        <circle cx="48" cy="74" r="9" fill="#ffb347" />
+        <path d="M42 74h12M48 68v12" stroke="#2b1a00" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M33 63 Q48 52 63 63" stroke="#ffb38c" strokeWidth="2.2" fill="none" />
       </svg>
-      <div style={{ display: "grid", gap: 1, lineHeight: 1.15 }}>
-        <strong style={{ fontSize: 12 }}>Penny</strong>
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>Shift sidekick</span>
-      </div>
-    </article>
+    </div>
   );
 }
 
@@ -405,41 +398,42 @@ export default function CalendarPage() {
 
   return (
     <main style={{ display: "grid", gap: 12 }}>
-      <section style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
+      <section style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
         <CalendarMascot />
         <div style={{ display: "grid", gap: 2, textAlign: "right" }}>
-          <strong style={{ fontSize: 22 }}>{monthTitle}</strong>
+          <strong style={{ fontSize: 22, color: "var(--neon)", textShadow: "0 0 12px rgba(255, 179, 71, 0.22)" }}>{monthTitle}</strong>
           <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe calendar left/right to change month</span>
         </div>
       </section>
 
       <section
         style={{
-          border: "1px solid var(--line)",
+          border: "1px solid var(--orange)",
           borderRadius: 12,
           background: "var(--surface)",
           color: "var(--text)",
           padding: 10,
           display: "grid",
           gap: 10,
+          boxShadow: "0 8px 24px rgba(255, 127, 80, 0.16)",
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid rgba(255, 179, 71, 0.55)" }}>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>Take Home</div>
             <div style={{ fontWeight: 700 }}>{money(currentMonthEarnings)}</div>
           </article>
-          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid rgba(255, 179, 71, 0.55)" }}>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours</div>
             <div style={{ fontWeight: 700 }}>{currentMonthHours.toFixed(2)}</div>
           </article>
-          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid rgba(255, 179, 71, 0.55)" }}>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>Take Home / Hour</div>
             <div style={{ fontWeight: 700 }}>{money(takeHomePerHour)}</div>
           </article>
         </div>
 
-        <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)" }}>
+        <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid rgba(255, 127, 80, 0.65)" }}>
           <div style={{ fontSize: 12, color: "var(--muted)" }}>{previousMonthTitle} Snapshot</div>
           <div style={{ fontWeight: 700 }}>Earnings: {money(lastMonthReport?.totalIncome ?? 0)}</div>
           <div style={{ fontSize: 13, color: "var(--muted)" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
@@ -473,9 +467,9 @@ export default function CalendarPage() {
           onTouchCancel={() => {
             touchStartRef.current = null;
           }}
-          style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden", touchAction: "pan-y" }}
+          style={{ border: "1px solid rgba(255, 179, 71, 0.65)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden", touchAction: "pan-y" }}
         >
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#2a3654", color: "#f1f5ff" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "linear-gradient(90deg, #ff7f50 0%, #ffb347 100%)", color: "#2a1a00" }}>
             {WEEKDAY_LABELS.map((label) => (
               <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
                 {label}
@@ -500,7 +494,7 @@ export default function CalendarPage() {
                   aria-label={`Open ${cell.date}`}
                   style={{
                     border: "none",
-                    background: isActive ? "#1e2d49" : isDayOff ? "#2e2538" : "var(--surface-2)",
+                    background: isActive ? "#3f2b1f" : isDayOff ? "#2e2538" : "var(--surface-2)",
                     color: "var(--text)",
                     minHeight: 88,
                     padding: 6,
@@ -509,7 +503,7 @@ export default function CalendarPage() {
                     alignContent: "space-between",
                     gap: 4,
                     cursor: "pointer",
-                    boxShadow: isToday ? "inset 0 0 0 2px var(--neon)" : "none",
+                    boxShadow: isToday ? "inset 0 0 0 2px var(--neon), 0 0 0 1px rgba(255, 179, 71, 0.4)" : "none",
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: 20 }}>{cell.day}</div>
