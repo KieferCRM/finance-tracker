@@ -228,7 +228,7 @@ export default function SchedulePage() {
           </button>
         </form>
         <div style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.4 }}>
-          Google: Calendar settings -> Integrate calendar -> Secret address in iCal format.
+          Google: Open Calendar settings, then Integrate calendar, then copy the Secret address in iCal format.
           <br />
           Apple/iCloud: Share calendar and copy its public iCal link.
         </div>
