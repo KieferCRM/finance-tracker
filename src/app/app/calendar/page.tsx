@@ -392,7 +392,7 @@ export default function CalendarPage() {
         style={{
           borderRadius: 14,
           padding: 14,
-          background: "linear-gradient(145deg, #31cc63 0%, #18a947 100%)",
+          background: "linear-gradient(145deg, #22b357 0%, #178745 100%)",
           color: "#f6fff8",
           display: "grid",
           gap: 8,
@@ -448,49 +448,49 @@ export default function CalendarPage() {
 
       <section
         style={{
-          border: "1px solid #c9d0d8",
+          border: "1px solid var(--line)",
           borderRadius: 12,
-          background: "#f0f2f5",
-          color: "#171c24",
+          background: "var(--surface)",
+          color: "var(--text)",
           padding: 10,
           display: "grid",
           gap: 10,
         }}
       >
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
-            <div style={{ fontSize: 11, color: "#4f5a67" }}>Take Home</div>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Take Home</div>
             <div style={{ fontWeight: 700 }}>{money(currentMonthEarnings)}</div>
           </article>
-          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
-            <div style={{ fontSize: 11, color: "#4f5a67" }}>Hours</div>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours</div>
             <div style={{ fontWeight: 700 }}>{currentMonthHours.toFixed(2)}</div>
           </article>
-          <article style={{ background: "#ffffff", borderRadius: 10, padding: 8, border: "1px solid #d7dde4" }}>
-            <div style={{ fontSize: 11, color: "#4f5a67" }}>Take Home / Hour</div>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)" }}>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Take Home / Hour</div>
             <div style={{ fontWeight: 700 }}>{money(takeHomePerHour)}</div>
           </article>
         </div>
 
-        <article style={{ background: "#ffffff", borderRadius: 10, padding: 10, border: "1px solid #d7dde4" }}>
-          <div style={{ fontSize: 12, color: "#4f5a67" }}>{previousMonthTitle} Snapshot</div>
+        <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)" }}>
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>{previousMonthTitle} Snapshot</div>
           <div style={{ fontWeight: 700 }}>Earnings: {money(lastMonthReport?.totalIncome ?? 0)}</div>
-          <div style={{ fontSize: 13, color: "#4f5a67" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
         </article>
 
         {showOnboarding ? (
-          <article style={{ background: "#ffffff", borderRadius: 10, padding: 10, border: "1px solid #d7dde4", display: "grid", gap: 8 }}>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)", display: "grid", gap: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
               <strong>Quick Start</strong>
               <button
                 type="button"
                 onClick={dismissOnboarding}
-                style={{ border: "1px solid #d1d7e0", borderRadius: 8, background: "#f7f8fa", padding: "5px 8px", color: "#27313e" }}
+                style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", padding: "5px 8px", color: "var(--text)" }}
               >
                 Dismiss
               </button>
             </div>
-            <div style={{ color: "#4f5a67", fontSize: 13 }}>Tap a date to log tips/hours, set Off Day, and check synced shifts.</div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log tips/hours, set Off Day, and check synced shifts.</div>
           </article>
         ) : null}
       </section>
@@ -500,8 +500,8 @@ export default function CalendarPage() {
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>
       ) : (
-        <section style={{ border: "1px solid #c9d0d8", borderRadius: 12, background: "#f0f2f5", color: "#171c24", overflow: "hidden" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#2dc85e", color: "#f5fff8" }}>
+        <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "#189447", color: "#f5fff8" }}>
             {WEEKDAY_LABELS.map((label) => (
               <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
                 {label}
@@ -509,9 +509,9 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 1, background: "#d7dde4" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", gap: 1, background: "var(--line)" }}>
             {monthGrid.map((cell, index) => {
-              if (!cell) return <div key={`blank-${index}`} style={{ minHeight: 88, background: "#f4f5f7" }} />;
+              if (!cell) return <div key={`blank-${index}`} style={{ minHeight: 88, background: "#141920" }} />;
 
               const totals = dailyTotals.get(cell.date);
               const scheduled = scheduleByDate.get(cell.date) ?? [];
@@ -527,8 +527,8 @@ export default function CalendarPage() {
                   aria-label={`Open ${cell.date}`}
                   style={{
                     border: "none",
-                    background: isActive ? "#ddf7e5" : isDayOff ? "#d2f0dc" : "#ffffff",
-                    color: "#171c24",
+                    background: isActive ? "#1e2e22" : isDayOff ? "#1c2b21" : "var(--surface-2)",
+                    color: "var(--text)",
                     minHeight: 88,
                     padding: 6,
                     textAlign: "left",
@@ -536,20 +536,20 @@ export default function CalendarPage() {
                     alignContent: "space-between",
                     gap: 4,
                     cursor: "pointer",
-                    boxShadow: isToday ? "inset 0 0 0 2px #1fb856" : "none",
+                    boxShadow: isToday ? "inset 0 0 0 2px #2cc95f" : "none",
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: 20 }}>{cell.day}</div>
                   <div style={{ display: "grid", gap: 3 }}>
-                    {totals ? <span style={{ fontSize: 11, color: "#2a3644" }}>{money(totals.tips)}</span> : null}
-                    {totals ? <span style={{ fontSize: 11, color: "#4f5a67" }}>{totals.hours.toFixed(1)}h</span> : null}
+                    {totals ? <span style={{ fontSize: 11, color: "var(--text)" }}>{money(totals.tips)}</span> : null}
+                    {totals ? <span style={{ fontSize: 11, color: "var(--muted)" }}>{totals.hours.toFixed(1)}h</span> : null}
                     {scheduled.length > 0 ? (
                       <span
                         style={{
                           fontSize: 10,
                           borderRadius: 999,
-                          background: "#e6f0ff",
-                          color: "#1d4ed8",
+                          background: "#1a2230",
+                          color: "#9ec5ff",
                           padding: "2px 6px",
                           width: "fit-content",
                           fontWeight: 700,
@@ -563,8 +563,8 @@ export default function CalendarPage() {
                         style={{
                           fontSize: 10,
                           borderRadius: 999,
-                          background: "#e8f7ec",
-                          color: "#15763a",
+                          background: "#1f3828",
+                          color: "#8ff0b5",
                           padding: "2px 6px",
                           width: "fit-content",
                           fontWeight: 700,
