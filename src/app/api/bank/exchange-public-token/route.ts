@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
 import { encryptToken } from "@/lib/bank/crypto";
 import { plaidClient } from "@/lib/bank/plaid";
+import { isProEnabled, PRO_UNDER_CONSTRUCTION_MESSAGE } from "@/lib/pro";
 
 type ExchangeBody = {
   public_token?: string;
@@ -12,6 +13,9 @@ type ExchangeBody = {
 export async function POST(request: NextRequest) {
   const { supabase, user, response } = await getAuthedSupabase();
   if (!supabase || !user) return response!;
+  if (!isProEnabled()) {
+    return NextResponse.json({ error: PRO_UNDER_CONSTRUCTION_MESSAGE }, { status: 503 });
+  }
 
   const body = (await request.json()) as ExchangeBody;
   const publicToken = String(body.public_token || "").trim();

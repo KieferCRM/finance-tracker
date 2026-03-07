@@ -6,7 +6,7 @@ export default function PrivacyPolicyPage() {
   return (
     <LegalShell title="Privacy Policy">
       <p>
-        TipTab collects and processes personal and financial information to provide budgeting, ledger tracking, and bank transaction sync features.
+        TipTapped collects and processes personal and financial information to provide budgeting, ledger tracking, and bank transaction sync features.
       </p>
 
       <section>
@@ -22,7 +22,7 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2 style={{ marginBottom: 8 }}>How We Use Information</h2>
         <ul style={{ marginTop: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
-          <li>To operate TipTab features and show your financial history and summaries.</li>
+          <li>To operate TipTapped features and show your financial history and summaries.</li>
           <li>To import and categorize transactions when you enable bank sync.</li>
           <li>To secure accounts, prevent abuse, and troubleshoot product issues.</li>
         </ul>
@@ -31,8 +31,8 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2 style={{ marginBottom: 8 }}>Plaid Disclosure</h2>
         <p style={{ marginTop: 0 }}>
-          TipTab uses Plaid Inc. (“Plaid”) to connect your bank account(s) and retrieve financial information. When you choose to link a bank
-          account, you authorize TipTab and Plaid to access and transmit certain data from your financial institution(s), which may include account
+          TipTapped uses Plaid Inc. (“Plaid”) to connect your bank account(s) and retrieve financial information. When you choose to link a bank
+          account, you authorize TipTapped and Plaid to access and transmit certain data from your financial institution(s), which may include account
           details (such as account name/type and masked account number), balances, and transaction information, depending on the features you
           enable.
         </p>
@@ -52,8 +52,8 @@ export default function PrivacyPolicyPage() {
 
         <h3 style={{ marginTop: 16, marginBottom: 8, fontSize: 18 }}>Your Control Over Bank Connections</h3>
         <p style={{ marginTop: 0 }}>
-          You can disconnect a linked bank account at any time from within TipTab. Disconnecting stops new data from being imported through Plaid.
-          Previously imported data may remain in TipTab until you delete it or request account deletion (see “Data Retention and Deletion”).
+          You can disconnect a linked bank account at any time from within TipTapped. Disconnecting stops new data from being imported through Plaid.
+          Previously imported data may remain in TipTapped until you delete it or request account deletion (see “Data Retention and Deletion”).
         </p>
 
         <h3 style={{ marginTop: 16, marginBottom: 8, fontSize: 18 }}>Data Access, Correction, and Deletion Requests</h3>

@@ -1,16 +1,19 @@
 import Link from "next/link";
+import { isProEnabled } from "@/lib/pro";
 
 export default function HomePage() {
+  const proEnabled = isProEnabled();
+
   return (
     <main style={{ minHeight: "100vh", padding: 24, display: "grid", placeItems: "center" }}>
       <div style={{ width: "min(980px, 100%)", display: "grid", gap: 14 }}>
         <section style={{ border: "1px solid var(--line)", borderRadius: 16, background: "var(--surface)", padding: 24 }}>
-          <div style={{ fontSize: 12, color: "var(--mint)", fontWeight: 700, letterSpacing: 0.3 }}>TIPTAP</div>
+          <div style={{ fontSize: 12, color: "var(--mint)", fontWeight: 700, letterSpacing: 0.3 }}>TIPTAPPED</div>
           <h1 style={{ marginTop: 10, marginBottom: 8, fontSize: "clamp(2rem, 6vw, 3.4rem)", lineHeight: 1.05 }}>
             Track the night. Keep more of it.
           </h1>
           <p style={{ marginTop: 0, color: "var(--muted)", maxWidth: 720 }}>
-            BarMath for Bartenders. Track cash and card tips, sync bank transactions, and spot where your money leaked before the next shift.
+            BarMath for Bartenders. Track cash and card tips, {proEnabled ? "sync bank transactions" : "track manually while Pro is under construction"}, and spot where your money leaked before the next shift.
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18 }}>
             <Link href="/auth" style={{ textDecoration: "none", background: "var(--neon)", color: "#111", padding: "10px 14px", borderRadius: 10, fontWeight: 800 }}>
@@ -28,8 +31,12 @@ export default function HomePage() {
             <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>Log tips and wages in under 30 seconds after every shift.</p>
           </article>
           <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
-            <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: 18 }}>Bank Sync with Plaid</h2>
-            <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>Connect accounts and import transactions to cut manual entry.</p>
+            <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: 18 }}>{proEnabled ? "Bank Sync with Plaid" : "Pro Under Construction"}</h2>
+            <p style={{ margin: 0, color: "var(--muted)", fontSize: 14 }}>
+              {proEnabled
+                ? "Connect accounts and import transactions to cut manual entry."
+                : "Pro bank sync is temporarily locked while Plaid approval is pending."}
+            </p>
           </article>
           <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
             <h2 style={{ marginTop: 0, marginBottom: 6, fontSize: 18 }}>Leak Checks</h2>
@@ -52,9 +59,23 @@ export default function HomePage() {
             </article>
 
             <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "#182119", padding: 14, display: "grid", gap: 8 }}>
-              <div style={{ color: "var(--neon)", fontWeight: 700, fontSize: 12 }}>PRO</div>
-              <div style={{ fontSize: 26, fontWeight: 800 }}>$12<span style={{ fontSize: 14, color: "var(--muted)" }}>/month</span></div>
-              <div style={{ color: "var(--muted)", fontSize: 14 }}>For tighter take-home control after every shift.</div>
+              <div style={{ color: "var(--neon)", fontWeight: 700, fontSize: 12 }}>
+                {proEnabled ? "PRO" : "UNDER CONSTRUCTION"}
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800 }}>
+                {proEnabled ? (
+                  <>
+                    $12<span style={{ fontSize: 14, color: "var(--muted)" }}>/month</span>
+                  </>
+                ) : (
+                  "Coming Soon"
+                )}
+              </div>
+              <div style={{ color: "var(--muted)", fontSize: 14 }}>
+                {proEnabled
+                  ? "For tighter take-home control after every shift."
+                  : "Paid features will open after Plaid approves the app."}
+              </div>
               <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
                 <li>Plaid bank sync</li>
                 <li>Unlimited month history</li>
@@ -79,7 +100,7 @@ export default function HomePage() {
             fontSize: 14,
           }}
         >
-          <span>TipTab</span>
+          <span>TipTapped</span>
           <span style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/legal/privacy">Privacy</Link>
             <Link href="/legal/terms">Terms</Link>

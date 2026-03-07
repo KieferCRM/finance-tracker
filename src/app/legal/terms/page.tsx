@@ -6,7 +6,7 @@ export default function TermsOfServicePage() {
   return (
     <LegalShell title="Terms of Service">
       <p>
-        These Terms of Service govern your use of TipTab. By creating an account or using the service, you agree to these terms.
+        These Terms of Service govern your use of TipTapped. By creating an account or using the service, you agree to these terms.
       </p>
 
       <section>
@@ -29,7 +29,7 @@ export default function TermsOfServicePage() {
       <section>
         <h2 style={{ marginBottom: 8 }}>No Financial Advice</h2>
         <p style={{ marginTop: 0 }}>
-          TipTab provides information tools only and does not provide legal, tax, accounting, or investment advice.
+          TipTapped provides information tools only and does not provide legal, tax, accounting, or investment advice.
         </p>
       </section>
 
@@ -43,7 +43,7 @@ export default function TermsOfServicePage() {
       <section>
         <h2 style={{ marginBottom: 8 }}>Limitation of Liability</h2>
         <p style={{ marginTop: 0 }}>
-          To the maximum extent permitted by law, TipTab is provided as-is without warranties, and we are not liable for indirect or consequential
+          To the maximum extent permitted by law, TipTapped is provided as-is without warranties, and we are not liable for indirect or consequential
           damages arising from use of the service.
         </p>
       </section>

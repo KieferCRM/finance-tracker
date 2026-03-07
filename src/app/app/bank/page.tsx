@@ -5,6 +5,7 @@ import { usePlaidLink } from "react-plaid-link";
 import type { PlaidLinkOnSuccessMetadata } from "react-plaid-link";
 
 type BankStatus = {
+  pro_enabled: boolean;
   items: Array<{ id: string; plaid_item_id: string; institution_name: string | null }>;
   accounts: Array<{
     id: string;
@@ -23,12 +24,19 @@ type BankStatus = {
   }>;
 };
 
+const UNDER_CONSTRUCTION = "Pro plan is under construction pending Plaid approval.";
+
 function money(value: number | null): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value ?? 0));
 }
 
 export default function BankPage() {
-  const [status, setStatus] = useState<BankStatus>({ items: [], accounts: [], recent_transactions: [] });
+  const [status, setStatus] = useState<BankStatus>({
+    pro_enabled: false,
+    items: [],
+    accounts: [],
+    recent_transactions: [],
+  });
   const [linkToken, setLinkToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -48,6 +56,7 @@ export default function BankPage() {
   }, []);
 
   const createLinkToken = useCallback(async () => {
+    if (!status.pro_enabled) return;
     const res = await fetch("/api/bank/link-token", { method: "POST" });
     if (!res.ok) {
       const json = (await res.json().catch(() => ({}))) as { error?: string };
@@ -56,11 +65,21 @@ export default function BankPage() {
     }
     const json = (await res.json()) as { link_token: string };
     setLinkToken(json.link_token);
-  }, []);
+  }, [status.pro_enabled]);
 
   useEffect(() => {
-    void Promise.all([loadStatus(), createLinkToken()]);
-  }, [createLinkToken, loadStatus]);
+    void loadStatus();
+  }, [loadStatus]);
+
+  useEffect(() => {
+    if (!status.pro_enabled) {
+      if (linkToken) setLinkToken("");
+      return;
+    }
+    if (!linkToken) {
+      void createLinkToken();
+    }
+  }, [status.pro_enabled, linkToken, createLinkToken]);
 
   const config = useMemo(
     () => ({
@@ -92,6 +111,11 @@ export default function BankPage() {
   const { open, ready } = usePlaidLink(config);
 
   async function syncTransactions() {
+    if (!status.pro_enabled) {
+      setError(UNDER_CONSTRUCTION);
+      return;
+    }
+
     setSyncing(true);
     setError("");
     const res = await fetch("/api/bank/sync", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
@@ -110,19 +134,36 @@ export default function BankPage() {
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
         <h1 style={{ margin: "0 0 8px" }}>Bank Integration</h1>
         <p style={{ marginTop: 0, color: "var(--muted)" }}>
-          Pro feature: connect your bank with Plaid, then sync transactions into TipTab.
+          {status.pro_enabled
+            ? "Connect your bank with Plaid, then sync transactions into TipTapped."
+            : "Under construction until Plaid approval. Existing synced data remains view-only."}
         </p>
+        {!status.pro_enabled ? (
+          <div
+            style={{
+              marginBottom: 10,
+              border: "1px solid var(--amber)",
+              borderRadius: 8,
+              background: "#2a2214",
+              color: "#ffd28a",
+              padding: "8px 10px",
+              fontSize: 13,
+            }}
+          >
+            Under Construction (Pending Plaid approval)
+          </div>
+        ) : null}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             onClick={() => open()}
-            disabled={!ready || !linkToken}
+            disabled={!status.pro_enabled || !ready || !linkToken}
             style={{ border: "none", borderRadius: 8, padding: "10px 14px", background: "var(--neon)", color: "#111", fontWeight: 800 }}
           >
             Connect Bank
           </button>
           <button
             onClick={() => void syncTransactions()}
-            disabled={syncing || status.items.length === 0}
+            disabled={!status.pro_enabled || syncing || status.items.length === 0}
             style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "10px 14px", background: "var(--surface-2)", color: "var(--text)", fontWeight: 700 }}
           >
             {syncing ? "Syncing..." : "Sync Transactions"}

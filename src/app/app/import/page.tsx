@@ -58,7 +58,7 @@ export default function ImportPage() {
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
         <h1 style={{ margin: "0 0 6px" }}>Import CSV</h1>
         <p style={{ margin: 0, color: "var(--muted)" }}>
-          Upload CSV from Google Sheets or TipTab export. Imported rows are added directly into your ledger.
+          Upload CSV from Google Sheets or TipTapped export. Imported rows are added directly into your ledger.
         </p>
       </section>
 
@@ -98,7 +98,7 @@ export default function ImportPage() {
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
         <h2 style={{ marginTop: 0 }}>Supported CSV Formats</h2>
         <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8, color: "var(--muted)" }}>
-          <li>TipTab monthly export (`type,date,...`)</li>
+          <li>TipTapped monthly export (`type,date,...`)</li>
           <li>Google Sheets `income_entries` tab export</li>
           <li>Google Sheets `expense_entries` tab export</li>
         </ul>

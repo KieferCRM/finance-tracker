@@ -5,7 +5,7 @@ export default function PlaidPolicyPage() {
   return (
     <LegalShell title="Plaid Data Access Policy">
       <p>
-        TipTab uses Plaid to let users securely connect financial accounts and import transaction data into the app.
+        TipTapped uses Plaid to let users securely connect financial accounts and import transaction data into the app.
       </p>
 
       <section>
@@ -20,7 +20,7 @@ export default function PlaidPolicyPage() {
         <h2 style={{ marginBottom: 8 }}>How Plaid Data Is Used</h2>
         <ul style={{ marginTop: 0, paddingLeft: 18, display: "grid", gap: 6 }}>
           <li>To sync account transactions into user-visible ledgers and reports.</li>
-          <li>To categorize and summarize spending trends inside TipTab.</li>
+          <li>To categorize and summarize spending trends inside TipTapped.</li>
           <li>To support user-requested bank reconnection and debugging.</li>
         </ul>
       </section>

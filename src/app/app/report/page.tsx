@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 const MONTHLY_INCOME_GOAL_KEY = "lcl_monthly_income_goal";
 const MONTHLY_SAVINGS_GOAL_KEY = "lcl_monthly_savings_goal";
+const BACKUP_REMINDER_PREFIX = "tiptab_backup_reminder_dismissed_";
 
 type ReportResponse = {
   month: string;
@@ -32,12 +33,14 @@ function percentOfGoal(current: number, goal: number): number {
 
 export default function ReportPage() {
   const [month, setMonth] = useState(CURRENT_MONTH);
+  const [proEnabled, setProEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [data, setData] = useState<ReportResponse | null>(null);
   const [sheetTestMsg, setSheetTestMsg] = useState("");
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(4500);
   const [monthlySavingsGoal, setMonthlySavingsGoal] = useState(1200);
+  const [showBackupReminder, setShowBackupReminder] = useState(false);
 
   useEffect(() => {
     const incomeGoalRaw = window.localStorage.getItem(MONTHLY_INCOME_GOAL_KEY);
@@ -80,6 +83,30 @@ export default function ReportPage() {
     return () => {
       active = false;
     };
+  }, [month]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProStatus() {
+      const res = await fetch("/api/bank/status");
+      if (!active || !res.ok) return;
+
+      const json = (await res.json().catch(() => ({}))) as { pro_enabled?: boolean };
+      if (!active) return;
+      setProEnabled(json.pro_enabled === true);
+    }
+
+    void loadProStatus();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const key = `${BACKUP_REMINDER_PREFIX}${month}`;
+    const dismissed = window.localStorage.getItem(key) === "true";
+    setShowBackupReminder(!dismissed);
   }, [month]);
 
   async function runSheetsTest() {
@@ -125,12 +152,13 @@ export default function ReportPage() {
 
     const projectedIncome = (data.report.totalIncome / elapsedDays) * daysInMonth;
     const projectedExpenses = (data.report.totalExpenses / elapsedDays) * daysInMonth;
+    const projectedSavings = (data.report.savingsAmount / elapsedDays) * daysInMonth;
 
     return {
       state: "current" as const,
       projectedIncome,
       projectedExpenses,
-      projectedSavings: projectedIncome - projectedExpenses,
+      projectedSavings,
     };
   }, [data, month]);
 
@@ -142,6 +170,12 @@ export default function ReportPage() {
     () => percentOfGoal(data?.report.savingsAmount ?? 0, monthlySavingsGoal),
     [data?.report.savingsAmount, monthlySavingsGoal]
   );
+
+  function dismissBackupReminder() {
+    const key = `${BACKUP_REMINDER_PREFIX}${month}`;
+    window.localStorage.setItem(key, "true");
+    setShowBackupReminder(false);
+  }
 
   return (
     <main style={{ display: "grid", gap: 14 }}>
@@ -158,8 +192,34 @@ export default function ReportPage() {
         </div>
       </section>
 
+      {showBackupReminder ? (
+        <section style={{ border: "1px solid var(--amber)", borderRadius: 12, background: "#2a2214", padding: 12, display: "grid", gap: 8 }}>
+          <strong>Backup Reminder</strong>
+          <div style={{ color: "var(--muted)", fontSize: 14 }}>
+            Export a CSV backup for {month} so your data is safe and easy to share.
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <a
+              href={`/api/export/monthly?month=${month}`}
+              style={{ textDecoration: "none", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", background: "var(--surface-2)", color: "var(--text)" }}
+            >
+              Export This Month CSV
+            </a>
+            <button
+              type="button"
+              onClick={dismissBackupReminder}
+              style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", background: "transparent", color: "var(--text)" }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12, color: "var(--muted)", fontSize: 14 }}>
-        Free includes monthly summary and manual tracking. Pro adds bank sync and deeper savings prompts.
+        {proEnabled
+          ? "Free includes monthly summary and manual tracking. Pro adds bank sync and deeper savings prompts."
+          : "Free includes monthly summary and manual tracking. Pro bank sync is under construction pending Plaid approval."}
         <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <button onClick={() => void runSheetsTest()} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "7px 10px", background: "var(--surface-2)", color: "var(--text)" }}>
             Test Google Sheets Sync
@@ -183,7 +243,7 @@ export default function ReportPage() {
               <div style={{ fontSize: 24, fontWeight: 800 }}>{money(data.report.totalExpenses)}</div>
             </article>
             <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12 }}>
-              <div style={{ color: "var(--muted)", fontSize: 12 }}>Saved</div>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>Savings Logged</div>
               <div style={{ fontSize: 24, fontWeight: 800 }}>{money(data.report.savingsAmount)}</div>
             </article>
             <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12 }}>
@@ -193,10 +253,10 @@ export default function ReportPage() {
           </section>
 
           <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14, display: "grid", gap: 12 }}>
-            <h2 style={{ margin: 0 }}>Monthly Goals</h2>
+            <h2 style={{ margin: 0 }}>Goals</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ color: "var(--muted)", fontSize: 13 }}>Income Goal</span>
+                <span style={{ color: "var(--muted)", fontSize: 13 }}>Monthly Income Goal</span>
                 <input
                   type="number"
                   min="0"
@@ -207,7 +267,7 @@ export default function ReportPage() {
                 />
               </label>
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ color: "var(--muted)", fontSize: 13 }}>Savings Goal</span>
+                <span style={{ color: "var(--muted)", fontSize: 13 }}>EOY Savings Goal</span>
                 <input
                   type="number"
                   min="0"
@@ -228,7 +288,7 @@ export default function ReportPage() {
               </div>
 
               <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                Savings Progress: {money(data.report.savingsAmount)} / {money(monthlySavingsGoal)} ({savingsGoalPct.toFixed(0)}%)
+                Savings Logged Progress: {money(data.report.savingsAmount)} / {money(monthlySavingsGoal)} ({savingsGoalPct.toFixed(0)}%)
               </div>
               <div style={{ height: 10, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
                 <div style={{ width: `${savingsGoalPct}%`, height: "100%", background: "var(--neon)" }} />

@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TipTab",
+  title: "TipTapped",
   description: "BarMath for Bartenders. Track tips, shifts, and spending.",
-  applicationName: "TipTab",
+  applicationName: "TipTapped",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TipTab",
+    title: "TipTapped",
   },
   manifest: "/manifest.webmanifest",
 };

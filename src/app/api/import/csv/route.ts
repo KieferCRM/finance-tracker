@@ -101,10 +101,26 @@ function normalizeHeader(header: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
+function parseSignedNumber(value: string | undefined): number | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+
+  const isParenNegative = raw.startsWith("(") && raw.endsWith(")");
+  const cleaned = raw
+    .replace(/[,$]/g, "")
+    .replace(/^\((.*)\)$/, "$1")
+    .replace(/\s+/g, "");
+
+  const num = Number(cleaned);
+  if (!Number.isFinite(num)) return null;
+  const signed = isParenNegative ? -Math.abs(num) : num;
+  return signed;
+}
+
 function toNumber(value: string | undefined): number {
-  const num = Number((value ?? "").trim());
-  if (!Number.isFinite(num)) return 0;
-  return Math.max(0, num);
+  const signed = parseSignedNumber(value);
+  if (signed === null) return 0;
+  return Math.abs(signed);
 }
 
 function toDate(value: string | undefined): string | null {
@@ -112,6 +128,36 @@ function toDate(value: string | undefined): string | null {
   if (!raw) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
   if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+
+  const slashOrDash = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s|T|$)/);
+  if (slashOrDash) {
+    const month = Number(slashOrDash[1]);
+    const day = Number(slashOrDash[2]);
+    const year = Number(slashOrDash[3]);
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const probe = new Date(`${iso}T00:00:00.000Z`);
+      if (!Number.isNaN(probe.getTime()) && probe.toISOString().slice(0, 10) === iso) {
+        return iso;
+      }
+    }
+  }
+
+  const serial = Number(raw);
+  if (Number.isFinite(serial) && serial > 20000 && serial < 100000) {
+    const excelEpochUtc = Date.UTC(1899, 11, 30);
+    const millis = excelEpochUtc + Math.floor(serial) * 24 * 60 * 60 * 1000;
+    const serialDate = new Date(millis);
+    if (!Number.isNaN(serialDate.getTime())) {
+      return serialDate.toISOString().slice(0, 10);
+    }
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().slice(0, 10);
+  }
+
   return null;
 }
 
@@ -135,6 +181,49 @@ function detectFormat(headers: string[]): ImportFormat | null {
   if (has("expense_date") && has("amount")) {
     return "expense_sheet";
   }
+  return null;
+}
+
+function normalizeToken(value: string | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeCombinedType(value: string | undefined): "income" | "expense" | null {
+  const token = normalizeToken(value);
+  if (!token) return null;
+  if (token.includes("income") || token.includes("earning") || token.includes("tip")) return "income";
+  if (token.includes("expense") || token.includes("spend") || token.includes("purchase") || token.includes("bill")) return "expense";
+
+  const incomeTokens = new Set([
+    "income",
+    "in",
+    "credit",
+    "cash_in",
+    "inflow",
+    "deposit",
+    "earning",
+    "earnings",
+    "tip",
+    "tips",
+  ]);
+  const expenseTokens = new Set([
+    "expense",
+    "out",
+    "debit",
+    "cash_out",
+    "outflow",
+    "spend",
+    "spending",
+    "purchase",
+    "withdrawal",
+    "bill",
+  ]);
+  if (incomeTokens.has(token)) return "income";
+  if (expenseTokens.has(token)) return "expense";
   return null;
 }
 
@@ -163,7 +252,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Unsupported CSV format. Use TipTab export CSV, Google Sheet income_entries CSV, or Google Sheet expense_entries CSV.",
+          "Unsupported CSV format. Use TipTapped export CSV, Google Sheet income_entries CSV, or Google Sheet expense_entries CSV.",
       },
       { status: 400 }
     );
@@ -188,7 +277,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (format === "combined_export") {
-      const type = (record.type ?? "").toLowerCase();
+      const amountSigned = parseSignedNumber(record.amount);
+      const inferredType =
+        normalizeCombinedType(record.type) ??
+        (record.shift_date || record.cash_tips || record.card_tips ? "income" : null) ??
+        (record.expense_date || record.category || record.category_or_context ? "expense" : null) ??
+        (typeof amountSigned === "number" && amountSigned < 0 ? "expense" : null) ??
+        (typeof amountSigned === "number" && amountSigned > 0 ? "income" : null);
+      const type = inferredType;
 
       if (type === "income") {
         const shiftDate = toDate(record.shift_date || record.date);
@@ -223,7 +319,7 @@ export async function POST(request: NextRequest) {
           id: toUuid(record.id || record.entry_id),
           expense_date: expenseDate,
           category: category || "other",
-          amount: toNumber(record.amount),
+          amount: amountSigned !== null ? Math.abs(amountSigned) : toNumber(record.amount),
           note: (record.note ?? "").trim() || null,
         });
         continue;

@@ -6,7 +6,7 @@ export default function AccessControlsPolicyPage() {
   return (
     <LegalShell title="Access Controls Policy">
       <p>
-        This policy describes the administrative, technical, and operational controls TipTab uses to restrict and monitor access to customer data,
+        This policy describes the administrative, technical, and operational controls TipTapped uses to restrict and monitor access to customer data,
         including data obtained through Plaid.
       </p>
 

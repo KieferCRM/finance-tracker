@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
 import { monthRangeFromParam } from "@/lib/reporting/month";
+import { isDayOffEntry } from "@/lib/calendar";
 
 function csvEscape(value: string | number | null | undefined): string {
   const raw = value === null || value === undefined ? "" : String(value);
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
   ];
 
   for (const row of incomeRows ?? []) {
+    if (isDayOffEntry(row)) continue;
     lines.push(
       [
         csvEscape("income"),

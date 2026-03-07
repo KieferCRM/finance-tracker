@@ -22,7 +22,7 @@ export async function POST() {
     await syncEventToGoogleSheets({
       event: "connection_test",
       user_id: user.id,
-      note: "Manual connection test from TipTab",
+      note: "Manual connection test from TipTapped",
     });
     return NextResponse.json({ ok: true });
   } catch (error) {

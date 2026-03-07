@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
 import { syncEventToGoogleSheets } from "@/lib/integrations/google-sheets";
 import { monthRangeFromParam } from "@/lib/reporting/month";
+import { DAY_OFF_NOTE, isDayOffEntry } from "@/lib/calendar";
 
 function toNumber(value: unknown): number {
   const num = Number(value ?? 0);
@@ -13,6 +14,7 @@ export async function GET(request: NextRequest) {
   if (!supabase || !user) return response!;
 
   const month = request.nextUrl.searchParams.get("month");
+  const includeDayOff = request.nextUrl.searchParams.get("include_day_off") === "true";
   const limitRaw = request.nextUrl.searchParams.get("limit");
   const limit = limitRaw ? Math.max(1, Math.min(5000, Number(limitRaw) || 50)) : 50;
 
@@ -32,7 +34,10 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  return NextResponse.json({ rows: data ?? [] });
+  const rows = data ?? [];
+  const filteredRows = includeDayOff ? rows : rows.filter((row) => !isDayOffEntry(row));
+
+  return NextResponse.json({ rows: filteredRows });
 }
 
 export async function POST(request: NextRequest) {
@@ -45,13 +50,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "shift_date must be YYYY-MM-DD" }, { status: 400 });
   }
 
+  const cashTips = toNumber(body.cash_tips);
+  const cardTips = toNumber(body.card_tips);
+  const hoursWorked = toNumber(body.hours_worked ?? body.hourly_wages);
+  const dayOff = body.day_off === true;
+  const note = dayOff ? DAY_OFF_NOTE : body.note ? String(body.note).trim() : null;
+
+  if (!dayOff && cashTips <= 0 && cardTips <= 0 && hoursWorked <= 0) {
+    return NextResponse.json({ error: "Add tips or hours before saving a shift." }, { status: 400 });
+  }
+  if (note && note.length > 500) {
+    return NextResponse.json({ error: "note must be 500 characters or fewer." }, { status: 400 });
+  }
+
   const payload = {
     user_id: user.id,
     shift_date: shiftDate,
-    cash_tips: toNumber(body.cash_tips),
-    card_tips: toNumber(body.card_tips),
-    hourly_wages: toNumber(body.hours_worked ?? body.hourly_wages),
-    note: body.note ? String(body.note).trim() : null,
+    cash_tips: cashTips,
+    card_tips: cardTips,
+    hourly_wages: hoursWorked,
+    note,
   };
 
   const { data, error } = await supabase

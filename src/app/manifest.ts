@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "TipTab",
-    short_name: "TipTab",
+    name: "TipTapped",
+    short_name: "TipTapped",
     description: "BarMath for Bartenders. Tip-income tracker for shift workers.",
     start_url: "/app",
     display: "standalone",

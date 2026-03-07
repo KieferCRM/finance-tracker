@@ -6,7 +6,7 @@ export default function DataRetentionPolicyPage() {
   return (
     <LegalShell title="Data Retention and Disposal Policy">
       <p>
-        This policy explains how TipTab retains and disposes of user and financial data, including data accessed through Plaid.
+        This policy explains how TipTapped retains and disposes of user and financial data, including data accessed through Plaid.
       </p>
 
       <section>

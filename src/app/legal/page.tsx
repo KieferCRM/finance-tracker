@@ -5,7 +5,7 @@ export default function LegalHomePage() {
   return (
     <LegalShell title="Legal Policies">
       <p>
-        This page provides public legal documentation for TipTab, including policies commonly requested during Plaid application review.
+        This page provides public legal documentation for TipTapped, including policies commonly requested during Plaid application review.
       </p>
 
       <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
@@ -20,6 +20,9 @@ export default function LegalHomePage() {
         </li>
         <li>
           <Link href="/legal/data-retention">Data Retention and Disposal Policy</Link>
+        </li>
+        <li>
+          <Link href="/legal/access-controls">Access Controls Policy</Link>
         </li>
       </ul>
     </LegalShell>

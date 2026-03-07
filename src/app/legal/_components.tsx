@@ -13,7 +13,7 @@ export function LegalShell({
       <div style={{ width: "min(920px, 100%)", display: "grid", gap: 12 }}>
         <header style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <Link href="/" style={{ textDecoration: "none", color: "var(--mint)", fontWeight: 800, letterSpacing: 0.3 }}>
-            TIPTAB
+            TIPTAPPED
           </Link>
           <nav style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 14, color: "var(--muted)" }}>
             <Link href="/legal">Legal</Link>

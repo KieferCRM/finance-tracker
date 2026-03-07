@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
+import { isProEnabled } from "@/lib/pro";
 
 type BankItem = {
   id: string;
@@ -29,6 +30,7 @@ type BankTransaction = {
 export async function GET() {
   const { supabase, user, response } = await getAuthedSupabase();
   if (!supabase || !user) return response!;
+  const proEnabled = isProEnabled();
 
   const [{ data: items }, { data: accounts }, { data: txs }] = await Promise.all([
     supabase
@@ -51,6 +53,7 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
+    pro_enabled: proEnabled,
     items: (items ?? []) as BankItem[],
     accounts: (accounts ?? []) as BankAccount[],
     recent_transactions: (txs ?? []) as BankTransaction[],

@@ -45,8 +45,11 @@ BarMath for Bartenders: a playful, dark-themed tip-income tracker for servers an
 
 ## Plaid Setup
 1. Create a Plaid app in Plaid Dashboard.
-2. Use `sandbox` first:
+2. Keep Pro features gated until approval:
+   - set `PLAID_APPROVED=false`
+   - when Plaid approves your app, set `PLAID_APPROVED=true`
+3. Use `sandbox` first:
    - `PLAID_ENV=sandbox`
    - set `PLAID_CLIENT_ID` and `PLAID_SECRET`
-3. Connect account in app at `/app/bank`.
-4. Click `Sync Transactions` to import into `bank_transactions`.
+4. Connect account in app at `/app/bank`.
+5. Click `Sync Transactions` to import into `bank_transactions`.

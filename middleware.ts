@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const bypassAuth = process.env.DEV_BYPASS_AUTH === "true";
+  const bypassAuth = process.env.NODE_ENV !== "production" && process.env.DEV_BYPASS_AUTH === "true";
   if (bypassAuth) return res;
 
   const supabase = createServerClient(
@@ -26,6 +26,12 @@ export async function middleware(req: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (req.nextUrl.pathname === "/app" && user) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/app/calendar";
+    return NextResponse.redirect(url);
+  }
 
   if (req.nextUrl.pathname.startsWith("/app") && !user) {
     const url = req.nextUrl.clone();

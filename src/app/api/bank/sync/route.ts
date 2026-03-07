@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthedSupabase } from "@/lib/api-auth";
 import { decryptToken } from "@/lib/bank/crypto";
 import { plaidClient } from "@/lib/bank/plaid";
+import { isProEnabled, PRO_UNDER_CONSTRUCTION_MESSAGE } from "@/lib/pro";
 
 type SyncBody = {
   plaid_item_id?: string;
@@ -22,6 +23,9 @@ type BankAccountRow = {
 export async function POST(request: NextRequest) {
   const { supabase, user, response } = await getAuthedSupabase();
   if (!supabase || !user) return response!;
+  if (!isProEnabled()) {
+    return NextResponse.json({ error: PRO_UNDER_CONSTRUCTION_MESSAGE }, { status: 503 });
+  }
 
   const body = (await request.json().catch(() => ({}))) as SyncBody;
 
