@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 function HeaderBeeMascot() {
@@ -27,8 +27,17 @@ function HeaderBeeMascot() {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = useMemo(() => supabaseBrowser(), []);
   const [loggingOut, setLoggingOut] = useState(false);
+  const navItems = [
+    { href: "/app/calendar", label: "Calendar", isActive: pathname === "/app" || pathname === "/app/calendar" },
+    { href: "/app/scanner", label: "Scanner", isActive: pathname === "/app/scanner" },
+    { href: "/app/ledger", label: "Ledger", isActive: pathname === "/app/ledger" },
+    { href: "/app/history", label: "History", isActive: pathname === "/app/history" },
+    { href: "/app/report", label: "Report", isActive: pathname === "/app/report" },
+    { href: "/app/settings", label: "Settings", isActive: pathname === "/app/settings" },
+  ];
 
   async function logout() {
     if (loggingOut) return;
@@ -66,21 +75,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div style={{ fontSize: 11, color: "var(--muted)", letterSpacing: 0.2 }}>BarMath for Bartenders</div>
         </div>
         <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
-          <Link href="/app" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            Calendar
-          </Link>
-          <Link href="/app/ledger" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            Ledger
-          </Link>
-          <Link href="/app/import" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            Import
-          </Link>
-          <Link href="/app/history" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            History
-          </Link>
-          <Link href="/app/report" style={{ border: "1px solid var(--line)", borderRadius: 999, padding: "7px 12px", whiteSpace: "nowrap", textDecoration: "none", background: "var(--surface-2)" }}>
-            Report
-          </Link>
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                border: item.isActive ? "1px solid rgba(255, 216, 77, 0.9)" : "1px solid var(--line)",
+                borderRadius: 999,
+                padding: "7px 12px",
+                whiteSpace: "nowrap",
+                textDecoration: "none",
+                background: item.isActive ? "rgba(255, 216, 77, 0.16)" : "var(--surface-2)",
+                color: item.isActive ? "var(--neon)" : "var(--text)",
+                fontWeight: item.isActive ? 700 : 500,
+              }}
+            >
+              {item.label}
+            </Link>
+          ))}
           <button
             onClick={() => void logout()}
             disabled={loggingOut}

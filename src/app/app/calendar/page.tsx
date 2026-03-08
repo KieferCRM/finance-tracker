@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, TouchEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { isDayOffEntry } from "@/lib/calendar";
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -13,6 +13,8 @@ type IncomeRow = {
   shift_date: string;
   cash_tips: number;
   card_tips: number;
+  tipout?: number;
+  parking?: number;
   hours_worked: number;
   note: string | null;
 };
@@ -82,6 +84,10 @@ function dayLabel(isoDate: string): string {
     month: "short",
     day: "numeric",
   }).format(date);
+}
+
+function shiftTakeHome(row: IncomeRow): number {
+  return Number(row.cash_tips) + Number(row.card_tips) - Number(row.parking ?? 0);
 }
 
 function CalendarMascot() {
@@ -158,13 +164,21 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [suggestion, setSuggestion] = useState("");
 
   const [cashTips, setCashTips] = useState("");
   const [cardTips, setCardTips] = useState("");
+  const [tipout, setTipout] = useState("");
+  const [parking, setParking] = useState("");
   const [hoursWorked, setHoursWorked] = useState("");
   const [note, setNote] = useState("");
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [editCashTips, setEditCashTips] = useState("");
+  const [editCardTips, setEditCardTips] = useState("");
+  const [editTipout, setEditTipout] = useState("");
+  const [editParking, setEditParking] = useState("");
+  const [editHoursWorked, setEditHoursWorked] = useState("");
+  const [editNote, setEditNote] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -201,6 +215,16 @@ export default function CalendarPage() {
   }, [month, expandedDate]);
 
   useEffect(() => {
+    setEditingRowId(null);
+    setEditCashTips("");
+    setEditCardTips("");
+    setEditTipout("");
+    setEditParking("");
+    setEditHoursWorked("");
+    setEditNote("");
+  }, [expandedDate]);
+
+  useEffect(() => {
     const dismissed = window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) === "true";
     setShowOnboarding(!dismissed);
   }, []);
@@ -211,7 +235,7 @@ export default function CalendarPage() {
       if (isDayOffEntry(row)) continue;
       const current = totals.get(row.shift_date) ?? { tips: 0, hours: 0, count: 0 };
       totals.set(row.shift_date, {
-        tips: current.tips + Number(row.cash_tips) + Number(row.card_tips),
+        tips: current.tips + shiftTakeHome(row),
         hours: current.hours + Number(row.hours_worked),
         count: current.count + 1,
       });
@@ -220,7 +244,7 @@ export default function CalendarPage() {
   }, [incomeRows]);
 
   const computedMonthSummary = useMemo(() => {
-    const earnings = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.cash_tips) + Number(row.card_tips)), 0);
+    const earnings = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + shiftTakeHome(row)), 0);
     const hours = incomeRows.reduce((sum, row) => (isDayOffEntry(row) ? sum : sum + Number(row.hours_worked)), 0);
     return { earnings, hours };
   }, [incomeRows]);
@@ -265,17 +289,41 @@ export default function CalendarPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/income", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          shift_date: expandedDate,
-          cash_tips: cashTips,
-          card_tips: cardTips,
-          hours_worked: hoursWorked,
-          note,
-        }),
-      });
+      const existingRows = incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row));
+      const firstRow = existingRows[0];
+
+      const parsedCash = Math.max(0, Number(cashTips) || 0);
+      const parsedCard = Math.max(0, Number(cardTips) || 0);
+      const parsedTipout = Math.max(0, Number(tipout) || 0);
+      const parsedParking = Math.max(0, Number(parking) || 0);
+      const parsedHours = Math.max(0, Number(hoursWorked) || 0);
+
+      const res = firstRow
+        ? await fetch(`/api/income/${firstRow.id}`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              cash_tips: Number(firstRow.cash_tips) + parsedCash,
+              card_tips: Number(firstRow.card_tips) + parsedCard,
+              tipout: Number(firstRow.tipout ?? 0) + parsedTipout,
+              parking: Number(firstRow.parking ?? 0) + parsedParking,
+              hours_worked: parsedHours > 0 ? parsedHours : Number(firstRow.hours_worked),
+              note: note.trim() ? note.trim() : firstRow.note ?? "",
+            }),
+          })
+        : await fetch("/api/income", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              shift_date: expandedDate,
+              cash_tips: parsedCash,
+              card_tips: parsedCard,
+              tipout: parsedTipout,
+              parking: parsedParking,
+              hours_worked: parsedHours,
+              note,
+            }),
+          });
 
       if (!res.ok) {
         const json = (await res.json().catch(() => ({}))) as { error?: string };
@@ -285,6 +333,8 @@ export default function CalendarPage() {
 
       setCashTips("");
       setCardTips("");
+      setTipout("");
+      setParking("");
       setHoursWorked("");
       setNote("");
       setExpandedDate(null);
@@ -322,6 +372,8 @@ export default function CalendarPage() {
             shift_date: expandedDate,
             cash_tips: 0,
             card_tips: 0,
+            tipout: 0,
+            parking: 0,
             hours_worked: 0,
             day_off: true,
           }),
@@ -344,16 +396,66 @@ export default function CalendarPage() {
     }
   }
 
-  const expandedTotals = expandedDate
-    ? dailyTotals.get(expandedDate) ?? { tips: 0, hours: 0, count: 0 }
-    : { tips: 0, hours: 0, count: 0 };
+  function startEditingRow(row: IncomeRow) {
+    setEditingRowId(row.id);
+    setEditCashTips(String(Number(row.cash_tips) || 0));
+    setEditCardTips(String(Number(row.card_tips) || 0));
+    setEditTipout(String(Number(row.tipout ?? 0) || 0));
+    setEditParking(String(Number(row.parking ?? 0) || 0));
+    setEditHoursWorked(String(Number(row.hours_worked) || 0));
+    setEditNote(row.note ?? "");
+  }
 
-  const expandedRows = expandedDate
-    ? incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row))
-    : [];
-  const expandedDayOffRows = expandedDate
-    ? incomeRows.filter((row) => row.shift_date === expandedDate && isDayOffEntry(row))
-    : [];
+  function cancelEditingRow() {
+    setEditingRowId(null);
+    setEditCashTips("");
+    setEditCardTips("");
+    setEditTipout("");
+    setEditParking("");
+    setEditHoursWorked("");
+    setEditNote("");
+  }
+
+  async function saveEditedRow(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingRowId) return;
+
+    setSaving(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/income/${editingRowId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          cash_tips: editCashTips,
+          card_tips: editCardTips,
+          tipout: editTipout,
+          parking: editParking,
+          hours_worked: editHoursWorked,
+          note: editNote,
+        }),
+      });
+
+      if (!res.ok) {
+        const json = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(json.error ?? "Failed to update entry.");
+        return;
+      }
+
+      cancelEditingRow();
+      await refreshAfterSave();
+    } catch {
+      setError("Failed to update entry.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const expandedTotals = expandedDate ? dailyTotals.get(expandedDate) ?? { tips: 0, hours: 0, count: 0 } : { tips: 0, hours: 0, count: 0 };
+
+  const expandedRows = expandedDate ? incomeRows.filter((row) => row.shift_date === expandedDate && !isDayOffEntry(row)) : [];
+  const expandedDayOffRows = expandedDate ? incomeRows.filter((row) => row.shift_date === expandedDate && isDayOffEntry(row)) : [];
   const isExpandedDayOff = expandedDayOffRows.length > 0;
 
   const monthTitle = monthLabel(month);
@@ -377,44 +479,51 @@ export default function CalendarPage() {
     setMonth((current) => nextMonth(current));
   }
 
-  function onCalendarTouchStart(event: TouchEvent<HTMLElement>) {
-    if (expandedDate) return;
-    const touch = event.changedTouches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function onCalendarTouchEnd(event: TouchEvent<HTMLElement>) {
-    if (expandedDate) return;
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    if (!start) return;
-
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    const horizontalSwipe = Math.abs(deltaX) >= 60 && Math.abs(deltaX) > Math.abs(deltaY);
-    if (!horizontalSwipe) return;
-
-    if (deltaX < 0) {
-      goNextMonth();
-      return;
-    }
-    goPreviousMonth();
-  }
-
-  const suggestionMailTo = useMemo(() => {
-    const subject = encodeURIComponent("TipTapped Suggestion");
-    const body = encodeURIComponent(suggestion.trim());
-    return `mailto:routeflowsystems@gmail.com?subject=${subject}&body=${body}`;
-  }, [suggestion]);
-
   return (
     <main style={{ display: "grid", gap: 12 }}>
       <section style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
         <CalendarMascot />
         <div style={{ display: "grid", gap: 2, textAlign: "right" }}>
-          <strong style={{ fontSize: 22, color: "var(--neon)", textShadow: "0 0 12px rgba(255, 216, 77, 0.35)" }}>{monthTitle}</strong>
-          <span style={{ color: "var(--muted)", fontSize: 12 }}>Swipe calendar left/right to change month</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6 }}>
+            <button
+              type="button"
+              onClick={goPreviousMonth}
+              aria-label="Go to previous month"
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 999,
+                border: "1px solid var(--line)",
+                background: "var(--surface-2)",
+                color: "var(--text)",
+                fontSize: 16,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ‹
+            </button>
+            <strong style={{ fontSize: 22, color: "var(--neon)", textShadow: "0 0 12px rgba(255, 216, 77, 0.35)" }}>{monthTitle}</strong>
+            <button
+              type="button"
+              onClick={goNextMonth}
+              aria-label="Go to next month"
+              style={{
+                width: 26,
+                height: 26,
+                borderRadius: 999,
+                border: "1px solid var(--line)",
+                background: "var(--surface-2)",
+                color: "var(--text)",
+                fontSize: 16,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ›
+            </button>
+          </div>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>Use arrows to change month</span>
         </div>
       </section>
 
@@ -463,47 +572,9 @@ export default function CalendarPage() {
                 Dismiss
               </button>
             </div>
-            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log tips/hours and set Off Day.</div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log shift details.</div>
           </article>
         ) : null}
-      </section>
-
-      <section
-        style={{
-          border: "1px solid rgba(255, 216, 77, 0.78)",
-          borderRadius: 12,
-          background: "var(--surface)",
-          padding: 12,
-          display: "grid",
-          gap: 8,
-        }}
-      >
-        <div style={{ display: "grid", gap: 2 }}>
-          <strong style={{ color: "var(--neon)" }}>Suggestion Box</strong>
-          <span style={{ color: "var(--muted)", fontSize: 13 }}>Share ideas for new features or improvements.</span>
-        </div>
-        <textarea
-          value={suggestion}
-          onChange={(event) => setSuggestion(event.target.value)}
-          placeholder="What should we add or improve?"
-          rows={3}
-          maxLength={1200}
-          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", resize: "vertical" }}
-        />
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span style={{ color: "var(--muted)", fontSize: 12 }}>This opens your email app to send to routeflowsystems@gmail.com.</span>
-          <button
-            type="button"
-            disabled={suggestion.trim().length === 0}
-            onClick={() => {
-              window.location.href = suggestionMailTo;
-              setSuggestion("");
-            }}
-            style={{ border: "none", borderRadius: 10, padding: "10px 14px", background: "var(--neon)", color: "#2b2200", fontWeight: 800 }}
-          >
-            Send Suggestion
-          </button>
-        </div>
       </section>
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
@@ -511,14 +582,7 @@ export default function CalendarPage() {
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>
       ) : (
-        <section
-          onTouchStart={onCalendarTouchStart}
-          onTouchEnd={onCalendarTouchEnd}
-          onTouchCancel={() => {
-            touchStartRef.current = null;
-          }}
-          style={{ border: "1px solid rgba(255, 216, 77, 0.78)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden", touchAction: "pan-y" }}
-        >
+        <section style={{ border: "1px solid rgba(255, 216, 77, 0.78)", borderRadius: 12, background: "var(--surface)", color: "var(--text)", overflow: "hidden" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(0, 1fr))", background: "linear-gradient(90deg, #fff3a3 0%, #ffd84d 50%, #f5c400 100%)", color: "#2b2200" }}>
             {WEEKDAY_LABELS.map((label) => (
               <div key={label} style={{ textAlign: "center", fontSize: 12, padding: "7px 4px", fontWeight: 700 }}>
@@ -596,9 +660,7 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <div style={{ color: "var(--muted)", fontSize: 14 }}>
-            Logged: {money(expandedTotals.tips)} and {expandedTotals.hours.toFixed(1)} hrs
-          </div>
+          <div style={{ color: "var(--muted)", fontSize: 14 }}>Logged take-home: {money(expandedTotals.tips)} and {expandedTotals.hours.toFixed(1)} hrs</div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
@@ -640,6 +702,27 @@ export default function CalendarPage() {
               />
             </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={tipout}
+                onChange={(e) => setTipout(e.target.value)}
+                placeholder="Tipout"
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={parking}
+                onChange={(e) => setParking(e.target.value)}
+                placeholder="- Parking"
+                style={{ padding: "12px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+              />
+            </div>
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
               <input
                 type="number"
@@ -674,11 +757,111 @@ export default function CalendarPage() {
             {expandedRows.length === 0 ? (
               <div style={{ color: "var(--muted)", fontSize: 14 }}>No entries for this day yet.</div>
             ) : (
-              <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 5 }}>
+              <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
                 {expandedRows.map((row) => (
-                  <li key={row.id}>
-                    {money(Number(row.cash_tips) + Number(row.card_tips))} - {Number(row.hours_worked).toFixed(1)} hrs
-                    {row.note ? ` - ${row.note}` : ""}
+                  <li key={row.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10, background: "var(--surface-2)", display: "grid", gap: 8 }}>
+                    {editingRowId === row.id ? (
+                      <form onSubmit={saveEditedRow} style={{ display: "grid", gap: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editCashTips}
+                            onChange={(e) => setEditCashTips(e.target.value)}
+                            placeholder="Cash Tips"
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editCardTips}
+                            onChange={(e) => setEditCardTips(e.target.value)}
+                            placeholder="Card Tips"
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+                          />
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editTipout}
+                            onChange={(e) => setEditTipout(e.target.value)}
+                            placeholder="Tipout"
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+                          />
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={editParking}
+                            onChange={(e) => setEditParking(e.target.value)}
+                            placeholder="- Parking"
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+                          />
+                        </div>
+
+                        <input
+                          type="number"
+                          step="0.25"
+                          min="0"
+                          value={editHoursWorked}
+                          onChange={(e) => setEditHoursWorked(e.target.value)}
+                          placeholder="Hours Worked"
+                          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+                        />
+
+                        <textarea
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          placeholder="Notes (optional)"
+                          rows={2}
+                          maxLength={500}
+                          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", resize: "vertical" }}
+                        />
+
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            type="submit"
+                            disabled={saving}
+                            style={{ border: "none", borderRadius: 10, padding: "10px 12px", background: "var(--neon)", color: "#2a1a00", fontWeight: 800 }}
+                          >
+                            {saving ? "Saving..." : "Save Changes"}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={cancelEditingRow}
+                            style={{ border: "1px solid var(--line)", borderRadius: 10, padding: "10px 12px", background: "var(--surface)", color: "var(--text)" }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div>
+                          <strong>{money(shiftTakeHome(row))}</strong> - {Number(row.hours_worked).toFixed(1)} hrs
+                        </div>
+                        <div style={{ color: "var(--muted)", fontSize: 13 }}>
+                          Cash {money(Number(row.cash_tips))}, Card {money(Number(row.card_tips))}, Tipout {money(Number(row.tipout ?? 0))}, Parking -{money(Number(row.parking ?? 0))}
+                        </div>
+                        {row.note ? <div style={{ color: "var(--muted)", fontSize: 13 }}>{row.note}</div> : null}
+                        <div>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => startEditingRow(row)}
+                            style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "7px 10px", background: "var(--surface)", color: "var(--text)" }}
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

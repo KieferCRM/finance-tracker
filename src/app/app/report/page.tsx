@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 const MONTHLY_INCOME_GOAL_KEY = "lcl_monthly_income_goal";
 const MONTHLY_SAVINGS_GOAL_KEY = "lcl_monthly_savings_goal";
-const BACKUP_REMINDER_PREFIX = "tiptab_backup_reminder_dismissed_";
 
 type ReportResponse = {
   month: string;
@@ -31,6 +30,11 @@ function percentOfGoal(current: number, goal: number): number {
   return Math.max(0, Math.min(100, (current / goal) * 100));
 }
 
+function categoryLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  return normalized === "alcohol" ? "bar" : normalized;
+}
+
 export default function ReportPage() {
   const [month, setMonth] = useState(CURRENT_MONTH);
   const [proEnabled, setProEnabled] = useState(false);
@@ -40,7 +44,6 @@ export default function ReportPage() {
   const [sheetTestMsg, setSheetTestMsg] = useState("");
   const [monthlyIncomeGoal, setMonthlyIncomeGoal] = useState(4500);
   const [monthlySavingsGoal, setMonthlySavingsGoal] = useState(1200);
-  const [showBackupReminder, setShowBackupReminder] = useState(false);
 
   useEffect(() => {
     const incomeGoalRaw = window.localStorage.getItem(MONTHLY_INCOME_GOAL_KEY);
@@ -103,12 +106,6 @@ export default function ReportPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const key = `${BACKUP_REMINDER_PREFIX}${month}`;
-    const dismissed = window.localStorage.getItem(key) === "true";
-    setShowBackupReminder(!dismissed);
-  }, [month]);
-
   async function runSheetsTest() {
     setSheetTestMsg("");
     const res = await fetch("/api/integrations/google-sheets/test", { method: "POST" });
@@ -170,12 +167,52 @@ export default function ReportPage() {
     () => percentOfGoal(data?.report.savingsAmount ?? 0, monthlySavingsGoal),
     [data?.report.savingsAmount, monthlySavingsGoal]
   );
+  const monthEndVerdict = useMemo(() => {
+    if (!data) return null;
 
-  function dismissBackupReminder() {
-    const key = `${BACKUP_REMINDER_PREFIX}${month}`;
-    window.localStorage.setItem(key, "true");
-    setShowBackupReminder(false);
-  }
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    if (month >= currentMonth) return null;
+
+    const net = data.report.totalIncome - data.report.totalExpenses;
+    const incomeGoalHit = monthlyIncomeGoal <= 0 ? data.report.totalIncome > 0 : data.report.totalIncome >= monthlyIncomeGoal;
+    const savingsGoalHit = monthlySavingsGoal <= 0 ? data.report.savingsAmount > 0 : data.report.savingsAmount >= monthlySavingsGoal;
+    const savingsLogged = data.report.savingsAmount > 0;
+    const strongSavingsRate = data.report.savingsRate >= 15;
+    const positiveNet = net >= 0;
+
+    let score = 0;
+    if (incomeGoalHit) score += 30;
+    if (savingsGoalHit) score += 30;
+    if (positiveNet) score += 20;
+    if (savingsLogged) score += 10;
+    if (strongSavingsRate) score += 10;
+
+    let grade = "F";
+    let summary = "Month was off track. Tighten spending and set smaller weekly targets.";
+    if (score >= 85) {
+      grade = "A";
+      summary = "Excellent month. You hit goals and protected your money well.";
+    } else if (score >= 70) {
+      grade = "B";
+      summary = "Strong month. Keep this pace and tighten one weak category.";
+    } else if (score >= 55) {
+      grade = "C";
+      summary = "Mixed month. You made progress, but consistency needs work.";
+    } else if (score >= 40) {
+      grade = "D";
+      summary = "Rough month. Set a stricter plan for spending and savings.";
+    }
+
+    return {
+      score,
+      grade,
+      summary,
+      net,
+      incomeGoalHit,
+      savingsGoalHit,
+      positiveNet,
+    };
+  }, [data, month, monthlyIncomeGoal, monthlySavingsGoal]);
 
   return (
     <main style={{ display: "grid", gap: 14 }}>
@@ -186,35 +223,11 @@ export default function ReportPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: 10, borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface-2)", color: "var(--text)" }} />
-          <a href={`/api/export/monthly?month=${month}`} style={{ textDecoration: "none", border: "1px solid var(--line)", borderRadius: 8, padding: "10px 12px", background: "var(--surface-2)", color: "var(--text)" }}>
-            Export CSV
-          </a>
+          <Link href="/app/settings" style={{ textDecoration: "none", border: "1px solid var(--line)", borderRadius: 8, padding: "10px 12px", background: "var(--surface-2)", color: "var(--text)" }}>
+            Data Tools
+          </Link>
         </div>
       </section>
-
-      {showBackupReminder ? (
-        <section style={{ border: "1px solid var(--amber)", borderRadius: 12, background: "#2a2214", padding: 12, display: "grid", gap: 8 }}>
-          <strong>Backup Reminder</strong>
-          <div style={{ color: "var(--muted)", fontSize: 14 }}>
-            Export a CSV backup for {month} so your data is safe and easy to share.
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <a
-              href={`/api/export/monthly?month=${month}`}
-              style={{ textDecoration: "none", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", background: "var(--surface-2)", color: "var(--text)" }}
-            >
-              Export This Month CSV
-            </a>
-            <button
-              type="button"
-              onClick={dismissBackupReminder}
-              style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", background: "transparent", color: "var(--text)" }}
-            >
-              Dismiss
-            </button>
-          </div>
-        </section>
-      ) : null}
 
       <section style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 12, color: "var(--muted)", fontSize: 14 }}>
         {proEnabled
@@ -325,6 +338,35 @@ export default function ReportPage() {
             ) : null}
           </section>
 
+          {monthEndVerdict ? (
+            <section style={{ border: "1px solid rgba(255, 216, 77, 0.75)", borderRadius: 12, background: "var(--surface)", padding: 14, display: "grid", gap: 8 }}>
+              <h2 style={{ margin: 0 }}>Month-End Verdict</h2>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <strong style={{ fontSize: 26, lineHeight: 1 }}>Grade: {monthEndVerdict.grade}</strong>
+                <span style={{ color: "var(--muted)" }}>Score: {monthEndVerdict.score}/100</span>
+              </div>
+              <div style={{ color: "var(--muted)" }}>{monthEndVerdict.summary}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 8 }}>
+                <article style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10, background: "var(--surface-2)" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Net Result</div>
+                  <div style={{ fontWeight: 800 }}>{money(monthEndVerdict.net)}</div>
+                </article>
+                <article style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10, background: "var(--surface-2)" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Income Goal</div>
+                  <div style={{ fontWeight: 800 }}>{monthEndVerdict.incomeGoalHit ? "Met" : "Missed"}</div>
+                </article>
+                <article style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10, background: "var(--surface-2)" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Savings Goal</div>
+                  <div style={{ fontWeight: 800 }}>{monthEndVerdict.savingsGoalHit ? "Met" : "Missed"}</div>
+                </article>
+                <article style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 10, background: "var(--surface-2)" }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Profitability</div>
+                  <div style={{ fontWeight: 800 }}>{monthEndVerdict.positiveNet ? "Positive" : "Negative"}</div>
+                </article>
+              </div>
+            </section>
+          ) : null}
+
           <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 12 }}>
             <article style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--surface)", padding: 14 }}>
               <h2 style={{ marginTop: 0 }}>Top Spend Categories</h2>
@@ -334,7 +376,7 @@ export default function ReportPage() {
                 <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
                   {data.report.topCategories.map((item) => (
                     <li key={item.category}>
-                      {item.category}: {money(item.amount)} ({item.pctOfIncome.toFixed(1)}% of income)
+                      {categoryLabel(item.category)}: {money(item.amount)} ({item.pctOfIncome.toFixed(1)}% of income)
                     </li>
                   ))}
                 </ul>
