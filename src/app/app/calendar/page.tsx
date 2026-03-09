@@ -569,16 +569,17 @@ export default function CalendarPage() {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
-          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
+          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 3 }}>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{previousMonthTitle}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Earnings</div>
-            <div style={{ fontWeight: 700, fontSize: 13 }}>{money(lastMonthReport?.totalIncome ?? 0)}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours {(lastMonthReport?.totalHours ?? 0).toFixed(1)}h</div>
+            <div style={{ fontWeight: 700, fontSize: 13, overflowWrap: "anywhere" }}>
+              {money(lastMonthReport?.totalIncome ?? 0)}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{(lastMonthReport?.totalHours ?? 0).toFixed(1)}h total</div>
           </article>
 
-          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 76px auto", gap: 6, alignItems: "center" }}>
-              <div style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>Monthly Goal</div>
+          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 3 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 72px auto", gap: 6, alignItems: "center" }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>Goal</div>
               <input
                 type="number"
                 min="0"
@@ -596,16 +597,17 @@ export default function CalendarPage() {
                   if (!Number.isFinite(parsed)) return;
                   setMonthlyGoal(Math.max(0, parsed));
                 }}
-                placeholder="Goal"
-                style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "6px 7px", borderRadius: 7, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", fontSize: 12 }}
+                placeholder="0"
+                style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "5px 6px", borderRadius: 7, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", fontSize: 12 }}
               />
               <span style={{ color: "var(--muted)", fontSize: 11, textAlign: "right", whiteSpace: "nowrap" }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
             </div>
             <div style={{ width: "100%", minWidth: 0, height: 6, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
               <div style={{ width: `${monthlyGoalProgressPct}%`, height: "100%", background: "var(--neon)" }} />
             </div>
-            <div style={{ fontSize: 11, color: "var(--muted)", overflowWrap: "anywhere" }}>{money(currentMonthEarnings)} / {money(monthlyGoal)}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Remaining {money(monthlyGoalRemaining)}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)", overflowWrap: "anywhere" }}>
+              {money(currentMonthEarnings)} / {money(monthlyGoal)} · {money(monthlyGoalRemaining)} left
+            </div>
           </article>
         </div>
 
