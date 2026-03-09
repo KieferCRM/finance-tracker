@@ -17,11 +17,12 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#101214",
-          color: "#b7ff3c",
+          background: "linear-gradient(145deg, #0b1325 0%, #14223c 58%, #0f182b 100%)",
+          color: "#ffd84d",
           fontSize: 52,
           fontWeight: 800,
           letterSpacing: -1,
+          textShadow: "0 4px 9px rgba(255, 216, 77, 0.28)",
         }}
       >
         TT

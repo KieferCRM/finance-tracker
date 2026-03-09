@@ -17,11 +17,12 @@ export default function Icon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(145deg, #101214 0%, #1f242b 100%)",
-          color: "#b7ff3c",
+          background: "linear-gradient(145deg, #0b1325 0%, #14223c 58%, #0f182b 100%)",
+          color: "#ffd84d",
           fontSize: 110,
           fontWeight: 800,
           letterSpacing: -2,
+          textShadow: "0 6px 14px rgba(255, 216, 77, 0.28)",
         }}
       >
         TT
