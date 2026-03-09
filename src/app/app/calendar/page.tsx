@@ -587,48 +587,45 @@ export default function CalendarPage() {
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
 
-      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 10 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 8 }}>
-          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)", display: "grid", gap: 6 }}>
-            <div style={{ fontSize: 12, color: "var(--muted)" }}>{previousMonthTitle}</div>
+      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>{previousMonthTitle}</div>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>Earnings</div>
-            <div style={{ fontWeight: 700 }}>{money(lastMonthReport?.totalIncome ?? 0)}</div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours</div>
-            <div style={{ fontWeight: 700 }}>{(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>{money(lastMonthReport?.totalIncome ?? 0)}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours {(lastMonthReport?.totalHours ?? 0).toFixed(1)}h</div>
           </article>
 
-          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)", display: "grid", gap: 6 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 12, color: "var(--muted)" }}>Monthly Goal</div>
-              <span style={{ color: "var(--muted)", fontSize: 11, flexShrink: 0 }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
-            </div>
-            <input
-              type="number"
-              min="0"
-              step="50"
-              value={monthlyGoal > 0 ? String(monthlyGoal) : ""}
-              onFocus={(e) => e.currentTarget.select()}
-              onChange={(e) => {
-                const raw = e.target.value;
-                if (raw === "") {
-                  setMonthlyGoal(0);
-                  return;
-                }
+          <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 76px auto", gap: 6, alignItems: "center" }}>
+              <div style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>Monthly Goal</div>
+              <input
+                type="number"
+                min="0"
+                step="50"
+                value={monthlyGoal > 0 ? String(monthlyGoal) : ""}
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === "") {
+                    setMonthlyGoal(0);
+                    return;
+                  }
 
-                const parsed = Number(raw);
-                if (!Number.isFinite(parsed)) return;
-                setMonthlyGoal(Math.max(0, parsed));
-              }}
-              placeholder="Goal"
-              style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "8px 9px", borderRadius: 8, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
-            />
-            <div style={{ fontSize: 11, color: "var(--muted)", overflowWrap: "anywhere" }}>
-              {money(currentMonthEarnings)} / {money(monthlyGoal)}
+                  const parsed = Number(raw);
+                  if (!Number.isFinite(parsed)) return;
+                  setMonthlyGoal(Math.max(0, parsed));
+                }}
+                placeholder="Goal"
+                style={{ width: "100%", minWidth: 0, boxSizing: "border-box", padding: "6px 7px", borderRadius: 7, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)", fontSize: 12 }}
+              />
+              <span style={{ color: "var(--muted)", fontSize: 11, textAlign: "right", whiteSpace: "nowrap" }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
             </div>
-            <div style={{ fontSize: 11, color: "var(--muted)" }}>Remaining {money(monthlyGoalRemaining)}</div>
-            <div style={{ width: "100%", minWidth: 0, height: 8, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
+            <div style={{ width: "100%", minWidth: 0, height: 6, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
               <div style={{ width: `${monthlyGoalProgressPct}%`, height: "100%", background: "var(--neon)" }} />
             </div>
+            <div style={{ fontSize: 11, color: "var(--muted)", overflowWrap: "anywhere" }}>{money(currentMonthEarnings)} / {money(monthlyGoal)}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Remaining {money(monthlyGoalRemaining)}</div>
           </article>
         </div>
       </section>
