@@ -11,6 +11,15 @@ type TipoutRule = {
   base: TipoutBase;
 };
 
+type ScannerParseResponse = {
+  total_sales: number | null;
+  bar_sales: number | null;
+  food_sales: number | null;
+  gross_tips: number | null;
+  actual_take_home: number | null;
+  rules: Array<{ label: string; percentage: number; base: TipoutBase }>;
+};
+
 const DEFAULT_RULES: TipoutRule[] = [
   { id: "bar", label: "Bar", percentage: "5", base: "alcohol_sales" },
   { id: "backservers", label: "Backservers", percentage: "3", base: "food_sales" },
@@ -42,6 +51,61 @@ function amountForBase(base: TipoutBase, totalSales: number, alcoholSales: numbe
   return totalSales;
 }
 
+function toInputValue(value: number | null): string {
+  return typeof value === "number" ? value.toFixed(2) : "";
+}
+
+function detectRuleBase(text: string): TipoutBase {
+  const value = text.toLowerCase();
+  if (value.includes("food")) return "food_sales";
+  if (value.includes("alcohol") || value.includes("bar") || value.includes("liquor") || value.includes("beer") || value.includes("wine")) {
+    return "alcohol_sales";
+  }
+  return "total_sales";
+}
+
+function detectRuleLabel(text: string, base: TipoutBase): string {
+  const lower = text.toLowerCase();
+  const explicitTo = lower.match(/\bto\s+([a-z][a-z\s/&-]{1,28})/i);
+  if (explicitTo) {
+    const cleaned = explicitTo[1].replace(/\b(on|of|for|from|at)\b.*$/i, "").trim();
+    if (cleaned) return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  if (lower.includes("backserver")) return "Backservers";
+  if (lower.includes("runner")) return "Runners";
+  if (lower.includes("host")) return "Hosts";
+  if (base === "food_sales") return "Kitchen";
+  if (base === "alcohol_sales") return "Bar";
+  return "Tipout";
+}
+
+function parseTipoutRulesFromText(raw: string): Array<{ label: string; percentage: number; base: TipoutBase }> {
+  const text = raw.trim();
+  if (!text) return [];
+
+  const segments = text
+    .split(/[,;\n]|(?:\s+and\s+)/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const rules: Array<{ label: string; percentage: number; base: TipoutBase }> = [];
+
+  for (const segment of segments) {
+    const pctMatch = segment.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (!pctMatch) continue;
+
+    const percentage = Number(pctMatch[1]);
+    if (!Number.isFinite(percentage) || percentage < 0) continue;
+
+    const base = detectRuleBase(segment);
+    const label = detectRuleLabel(segment, base);
+    rules.push({ label, percentage, base });
+  }
+
+  return rules.slice(0, 6);
+}
+
 export default function ScannerPage() {
   const [totalSales, setTotalSales] = useState("");
   const [alcoholSales, setAlcoholSales] = useState("");
@@ -49,6 +113,10 @@ export default function ScannerPage() {
   const [grossTips, setGrossTips] = useState("");
   const [actualTakeHome, setActualTakeHome] = useState("");
   const [rules, setRules] = useState<TipoutRule[]>(DEFAULT_RULES);
+  const [tipoutRuleText, setTipoutRuleText] = useState("5% to bar on bar sales, 3% to backservers on food sales");
+  const [ruleNotice, setRuleNotice] = useState("");
+  const [parsing, setParsing] = useState(false);
+  const [parseNotice, setParseNotice] = useState("");
 
   const parsedTotalSales = positiveAmount(totalSales);
   const parsedAlcoholSales = positiveAmount(alcoholSales);
@@ -87,10 +155,70 @@ export default function ScannerPage() {
     setRules((prev) => prev.filter((rule) => rule.id !== id));
   }
 
-  function onImageChange(event: ChangeEvent<HTMLInputElement>) {
-    if (!event.target.files || event.target.files.length === 0) return;
-    alert("Receipt OCR is not connected yet. Manual entry below is active now.");
+  function applyRuleText() {
+    const parsed = parseTipoutRulesFromText(tipoutRuleText);
+    if (parsed.length === 0) {
+      setRuleNotice("Couldn't parse that rule text. Example: 5% to bar on bar sales, 3% to backservers on food sales");
+      return;
+    }
+
+    setRules(
+      parsed.map((rule, index) => ({
+        id: `text_${Date.now()}_${index}`,
+        label: rule.label,
+        percentage: String(rule.percentage),
+        base: rule.base,
+      }))
+    );
+    setRuleNotice("Tipout rules applied.");
+  }
+
+  async function onImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
     event.target.value = "";
+    if (!file) return;
+
+    setParsing(true);
+    setParseNotice("");
+
+    try {
+      const formData = new FormData();
+      formData.append("receipt", file);
+
+      const res = await fetch("/api/scanner/parse", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = (await res.json().catch(() => ({}))) as Partial<ScannerParseResponse> & { error?: string };
+      if (!res.ok) {
+        setParseNotice(json.error ?? "Could not parse this image. You can still enter values manually.");
+        return;
+      }
+
+      setTotalSales(toInputValue(json.total_sales ?? null));
+      setAlcoholSales(toInputValue(json.bar_sales ?? null));
+      setFoodSales(toInputValue(json.food_sales ?? null));
+      setGrossTips(toInputValue(json.gross_tips ?? null));
+      setActualTakeHome(toInputValue(json.actual_take_home ?? null));
+
+      if (Array.isArray(json.rules) && json.rules.length > 0) {
+        setRules(
+          json.rules.map((rule, index) => ({
+            id: `parsed_${Date.now()}_${index}`,
+            label: rule.label,
+            percentage: String(rule.percentage),
+            base: rule.base,
+          }))
+        );
+      }
+
+      setParseNotice("Receipt parsed. Review and adjust any values before using totals.");
+    } catch {
+      setParseNotice("Could not parse this image right now. You can still enter values manually.");
+    } finally {
+      setParsing(false);
+    }
   }
 
   const cardStyle = {
@@ -115,12 +243,15 @@ export default function ScannerPage() {
     <main style={{ display: "grid", gap: 10, maxWidth: 760, margin: "0 auto" }}>
       <section style={{ ...cardStyle, border: "1px solid rgba(255, 216, 77, 0.7)", background: "linear-gradient(180deg, rgba(255,216,77,0.1) 0%, rgba(255,216,77,0.02) 100%)" }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>Cashout Scanner</h1>
-        <div style={{ color: "var(--muted)", fontSize: 13 }}>Quick cashout math with custom tipout rules.</div>
+        <div style={{ color: "var(--muted)", fontSize: 13 }}>Upload your cashout and let TipTapped pull the numbers + math for you.</div>
       </section>
 
       <section style={cardStyle}>
         <strong style={{ fontSize: 14 }}>Receipt Upload</strong>
         <input type="file" accept="image/*" capture="environment" onChange={onImageChange} style={inputStyle} />
+        <div style={{ color: "var(--muted)", fontSize: 12 }}>
+          {parsing ? "Parsing receipt..." : parseNotice || "Upload a receipt image to auto-fill sales/tips and suggested tipout rules."}
+        </div>
       </section>
 
       <section style={cardStyle}>
@@ -140,6 +271,25 @@ export default function ScannerPage() {
           <button type="button" onClick={addRule} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "7px 9px", background: "var(--surface-2)", color: "var(--text)" }}>
             Add Rule
           </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <textarea
+            value={tipoutRuleText}
+            onChange={(e) => {
+              setTipoutRuleText(e.target.value);
+              if (ruleNotice) setRuleNotice("");
+            }}
+            rows={2}
+            placeholder="Example: 5% to bar on bar sales, 3% to backservers on food sales"
+            style={{ ...inputStyle, resize: "vertical", minHeight: 66 }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button type="button" onClick={applyRuleText} style={{ border: "1px solid rgba(255,216,77,0.6)", borderRadius: 8, padding: "7px 10px", background: "rgba(255,216,77,0.12)", color: "var(--text)" }}>
+              Apply Rule Text
+            </button>
+            {ruleNotice ? <span style={{ color: "var(--muted)", fontSize: 12 }}>{ruleNotice}</span> : null}
+          </div>
         </div>
 
         <div style={{ display: "grid", gap: 8 }}>
