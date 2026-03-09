@@ -7,6 +7,8 @@ const TODAY = new Date().toISOString().slice(0, 10);
 const CURRENT_MONTH = TODAY.slice(0, 7);
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ONBOARDING_DISMISSED_KEY = "tiptab_onboarding_dismissed_v1";
+const MONTHLY_INCOME_GOAL_KEY = "lcl_monthly_income_goal";
+const DEFAULT_MONTHLY_INCOME_GOAL = 4500;
 
 type IncomeRow = {
   id: string;
@@ -164,6 +166,7 @@ export default function CalendarPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [monthlyGoal, setMonthlyGoal] = useState(DEFAULT_MONTHLY_INCOME_GOAL);
 
   const [cashTips, setCashTips] = useState("");
   const [cardTips, setCardTips] = useState("");
@@ -227,7 +230,16 @@ export default function CalendarPage() {
   useEffect(() => {
     const dismissed = window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) === "true";
     setShowOnboarding(!dismissed);
+
+    const storedGoal = Number(window.localStorage.getItem(MONTHLY_INCOME_GOAL_KEY));
+    if (Number.isFinite(storedGoal) && storedGoal > 0) {
+      setMonthlyGoal(storedGoal);
+    }
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(MONTHLY_INCOME_GOAL_KEY, String(monthlyGoal));
+  }, [monthlyGoal]);
 
   const dailyTotals = useMemo(() => {
     const totals = new Map<string, { tips: number; hours: number; count: number }>();
@@ -465,6 +477,8 @@ export default function CalendarPage() {
   const currentMonthEarnings = currentReport?.totalIncome ?? computedMonthSummary.earnings;
   const currentMonthHours = currentReport?.totalHours ?? computedMonthSummary.hours;
   const takeHomePerHour = currentMonthHours > 0 ? currentMonthEarnings / currentMonthHours : 0;
+  const monthlyGoalProgressPct = monthlyGoal > 0 ? Math.max(0, Math.min(100, (currentMonthEarnings / monthlyGoal) * 100)) : 0;
+  const monthlyGoalRemaining = Math.max(0, monthlyGoal - currentMonthEarnings);
 
   function dismissOnboarding() {
     setShowOnboarding(false);
@@ -578,6 +592,30 @@ export default function CalendarPage() {
       </section>
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
+
+      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 12, display: "grid", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <strong style={{ fontSize: 14 }}>Monthly Goal Tracker</strong>
+          <span style={{ color: "var(--muted)", fontSize: 12 }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 140px", gap: 8 }}>
+          <div style={{ color: "var(--muted)", fontSize: 13, display: "grid", alignContent: "center" }}>
+            {money(currentMonthEarnings)} / {money(monthlyGoal)} · Remaining {money(monthlyGoalRemaining)}
+          </div>
+          <input
+            type="number"
+            min="0"
+            step="50"
+            value={monthlyGoal}
+            onChange={(e) => setMonthlyGoal(Math.max(0, Number(e.target.value) || 0))}
+            placeholder="Goal"
+            style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+          />
+        </div>
+        <div style={{ height: 10, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
+          <div style={{ width: `${monthlyGoalProgressPct}%`, height: "100%", background: "var(--neon)" }} />
+        </div>
+      </section>
 
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>

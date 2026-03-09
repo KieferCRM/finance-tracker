@@ -12,9 +12,10 @@ type ScannerParseResponse = {
   actual_take_home: number | null;
 };
 
-type ParsedRule = {
+type TipoutRule = {
+  id: string;
   label: string;
-  percentage: number;
+  percentage: string;
   base: TipoutBase;
 };
 
@@ -48,73 +49,16 @@ function toInputValue(value: number | null): string {
   return typeof value === "number" ? value.toFixed(2) : "";
 }
 
-function detectRuleBase(text: string): TipoutBase {
-  const value = text.toLowerCase();
-
-  if (value.includes("food") || value.includes("n/a beverage") || value.includes("na beverage") || value.includes("non alcoholic")) {
-    return "food_sales";
-  }
-  if (value.includes("bar") || value.includes("alcohol") || value.includes("wine") || value.includes("beer") || value.includes("liquor") || value.includes("reserve")) {
-    return "alcohol_sales";
-  }
-  return "total_sales";
-}
-
-function detectRuleLabel(text: string, base: TipoutBase): string {
-  const lower = text.toLowerCase();
-  const explicitTo = lower.match(/\bto\s+([a-z][a-z\s/&-]{1,32})/i);
-
-  if (explicitTo) {
-    const cleaned = explicitTo[1].replace(/\b(on|of|for|from|at)\b.*$/i, "").trim();
-    if (cleaned) {
-      return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
-    }
-  }
-
-  if (lower.includes("backserver") || lower.includes("server assistant")) return "Backservers";
-  if (lower.includes("runner")) return "Runners";
-  if (lower.includes("host")) return "Hosts";
-  if (base === "food_sales") return "Backservers";
-  if (base === "alcohol_sales") return "Bar";
-  return "Tipout";
-}
-
-function parseTipoutRulesFromText(raw: string): ParsedRule[] {
-  const text = raw.trim();
-  if (!text) return [];
-
-  const matches = Array.from(text.matchAll(/(\d+(?:\.\d+)?)\s*%([^%]*)/gi));
-  if (matches.length === 0) return [];
-
-  const parsed: ParsedRule[] = [];
-
-  for (const match of matches) {
-    const percentage = Number(match[1]);
-    if (!Number.isFinite(percentage) || percentage < 0) continue;
-
-    const context = (match[2] ?? "").trim();
-    const base = detectRuleBase(context);
-    const label = detectRuleLabel(context, base);
-
-    parsed.push({ label, percentage, base });
-  }
-
-  const deduped = new Map<string, ParsedRule>();
-  for (const rule of parsed) {
-    const key = `${rule.label.toLowerCase()}|${rule.base}|${rule.percentage}`;
-    if (!deduped.has(key)) deduped.set(key, rule);
-  }
-
-  return Array.from(deduped.values()).slice(0, 8);
-}
-
 export default function ScannerPage() {
   const [totalSales, setTotalSales] = useState("");
   const [alcoholSales, setAlcoholSales] = useState("");
   const [foodSales, setFoodSales] = useState("");
   const [grossTips, setGrossTips] = useState("");
   const [actualTakeHome, setActualTakeHome] = useState("");
-  const [tipoutRuleText, setTipoutRuleText] = useState("5% to bar on wine/beer/liquor/reserve wine, 3% to backservers on food and n/a beverage");
+  const [tipoutRules, setTipoutRules] = useState<TipoutRule[]>([
+    { id: "alcohol", label: "Bar", percentage: "5", base: "alcohol_sales" },
+    { id: "food", label: "Backservers", percentage: "3", base: "food_sales" },
+  ]);
   const [parsing, setParsing] = useState(false);
   const [parseNotice, setParseNotice] = useState("");
 
@@ -124,20 +68,20 @@ export default function ScannerPage() {
   const parsedGrossTips = positiveAmount(grossTips);
   const parsedActualTakeHome = positiveAmount(actualTakeHome);
 
-  const parsedRules = useMemo(() => parseTipoutRulesFromText(tipoutRuleText), [tipoutRuleText]);
-
   const calculatedRules = useMemo(() => {
-    return parsedRules.map((rule) => {
+    return tipoutRules.map((rule) => {
+      const percentage = positiveAmount(rule.percentage);
       const baseAmount = amountForBase(rule.base, parsedTotalSales, parsedAlcoholSales, parsedFoodSales);
-      const tipoutAmount = (baseAmount * rule.percentage) / 100;
+      const tipoutAmount = (baseAmount * percentage) / 100;
 
       return {
         ...rule,
+        percentage,
         baseAmount,
         tipoutAmount,
       };
     });
-  }, [parsedRules, parsedTotalSales, parsedAlcoholSales, parsedFoodSales]);
+  }, [tipoutRules, parsedTotalSales, parsedAlcoholSales, parsedFoodSales]);
 
   const totalTipout = calculatedRules.reduce((sum, rule) => sum + rule.tipoutAmount, 0);
   const expectedTakeHome = parsedGrossTips - totalTipout;
@@ -201,7 +145,7 @@ export default function ScannerPage() {
     <main style={{ display: "grid", gap: 10, maxWidth: 760, margin: "0 auto" }}>
       <section style={{ ...cardStyle, border: "1px solid rgba(255, 216, 77, 0.7)", background: "linear-gradient(180deg, rgba(255,216,77,0.1) 0%, rgba(255,216,77,0.02) 100%)" }}>
         <h1 style={{ margin: 0, fontSize: 24 }}>Cashout Scanner</h1>
-        <div style={{ color: "var(--muted)", fontSize: 13 }}>Tell TipTapped how tipout works once, then it runs the math for you.</div>
+        <div style={{ color: "var(--muted)", fontSize: 13 }}>Upload your receipt or enter values, then set tipout % and recipient for each category.</div>
       </section>
 
       <section style={cardStyle}>
@@ -213,16 +157,42 @@ export default function ScannerPage() {
       </section>
 
       <section style={cardStyle}>
-        <strong style={{ fontSize: 14 }}>How Tipout Works</strong>
-        <textarea
-          value={tipoutRuleText}
-          onChange={(e) => setTipoutRuleText(e.target.value)}
-          rows={3}
-          placeholder="Example: 5% to bar on wine/beer/liquor/reserve wine, 3% to backservers on food and n/a beverage"
-          style={{ ...inputStyle, resize: "vertical", minHeight: 82 }}
-        />
+        <strong style={{ fontSize: 14 }}>Tipout Rules</strong>
+        <div style={{ display: "grid", gap: 8 }}>
+          {tipoutRules.map((rule, index) => (
+            <article key={rule.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 9, background: "var(--surface-2)", display: "grid", gap: 6 }}>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>{BASE_LABELS[rule.base]}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 120px", gap: 8 }}>
+                <input
+                  type="text"
+                  value={rule.label}
+                  onChange={(e) =>
+                    setTipoutRules((current) =>
+                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, label: e.target.value } : item))
+                    )
+                  }
+                  placeholder="Recipient"
+                  style={inputStyle}
+                />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={rule.percentage}
+                  onChange={(e) =>
+                    setTipoutRules((current) =>
+                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, percentage: e.target.value } : item))
+                    )
+                  }
+                  placeholder="%"
+                  style={inputStyle}
+                />
+              </div>
+            </article>
+          ))}
+        </div>
         <div style={{ color: "var(--muted)", fontSize: 12 }}>
-          Include percentages and what sales each role tips out on. Parser supports food + n/a beverage and bar categories.
+          Food + N/A beverage defaults to Backservers, and alcohol sales default to Bar. You can edit recipients and percentages.
         </div>
       </section>
 
@@ -238,26 +208,22 @@ export default function ScannerPage() {
       </section>
 
       <section style={cardStyle}>
-        <strong style={{ fontSize: 14 }}>Parsed Tipout Rules</strong>
-        {calculatedRules.length === 0 ? (
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>No valid tipout rules found yet. Add percentages in the tipout description.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {calculatedRules.map((rule, index) => (
-              <article key={`${rule.label}-${rule.base}-${rule.percentage}-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 9, background: "var(--surface-2)", display: "grid", gap: 6 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <strong>{rule.label}</strong>
-                  <span style={{ color: "var(--muted)", fontSize: 12 }}>
-                    {rule.percentage.toFixed(2)}% of {BASE_LABELS[rule.base]}
-                  </span>
-                </div>
-                <div style={{ color: "var(--muted)", fontSize: 12 }}>
-                  {money(rule.baseAmount)} x {rule.percentage.toFixed(2)}% = <strong style={{ color: "var(--text)" }}>{money(rule.tipoutAmount)}</strong>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+        <strong style={{ fontSize: 14 }}>Tipout Breakdown</strong>
+        <div style={{ display: "grid", gap: 8 }}>
+          {calculatedRules.map((rule, index) => (
+            <article key={`${rule.id}-${index}`} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 9, background: "var(--surface-2)", display: "grid", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <strong>{rule.label.trim() || "Tipout"}</strong>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>
+                  {rule.percentage.toFixed(2)}% of {BASE_LABELS[rule.base]}
+                </span>
+              </div>
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                {money(rule.baseAmount)} x {rule.percentage.toFixed(2)}% = <strong style={{ color: "var(--text)" }}>{money(rule.tipoutAmount)}</strong>
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
 
       <section style={{ ...cardStyle, border: "1px solid rgba(255, 216, 77, 0.75)", background: "linear-gradient(180deg, rgba(255,216,77,0.08) 0%, rgba(255,216,77,0.02) 100%)" }}>
