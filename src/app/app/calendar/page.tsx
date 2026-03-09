@@ -606,8 +606,19 @@ export default function CalendarPage() {
               type="number"
               min="0"
               step="50"
-              value={monthlyGoal}
-              onChange={(e) => setMonthlyGoal(Math.max(0, Number(e.target.value) || 0))}
+              value={monthlyGoal > 0 ? String(monthlyGoal) : ""}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === "") {
+                  setMonthlyGoal(0);
+                  return;
+                }
+
+                const parsed = Number(raw);
+                if (!Number.isFinite(parsed)) return;
+                setMonthlyGoal(Math.max(0, parsed));
+              }}
               placeholder="Goal"
               style={{ padding: "8px 9px", borderRadius: 8, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
             />
