@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ZoomLock from "./zoom-lock";
 
 export const metadata: Metadata = {
   title: "TipTapped",
@@ -25,7 +26,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ZoomLock />
+        {children}
+      </body>
     </html>
   );
 }
