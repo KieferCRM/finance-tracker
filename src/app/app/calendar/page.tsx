@@ -568,12 +568,6 @@ export default function CalendarPage() {
           </article>
         </div>
 
-        <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid rgba(255, 216, 77, 0.65)" }}>
-          <div style={{ fontSize: 12, color: "var(--muted)" }}>{previousMonthTitle} Snapshot</div>
-          <div style={{ fontWeight: 700 }}>Earnings: {money(lastMonthReport?.totalIncome ?? 0)}</div>
-          <div style={{ fontSize: 13, color: "var(--muted)" }}>Hours: {(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
-        </article>
-
         {showOnboarding ? (
           <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)", display: "grid", gap: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -593,27 +587,38 @@ export default function CalendarPage() {
 
       {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
 
-      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 12, display: "grid", gap: 8 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <strong style={{ fontSize: 14 }}>Monthly Goal Tracker</strong>
-          <span style={{ color: "var(--muted)", fontSize: 12 }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 140px", gap: 8 }}>
-          <div style={{ color: "var(--muted)", fontSize: 13, display: "grid", alignContent: "center" }}>
-            {money(currentMonthEarnings)} / {money(monthlyGoal)} · Remaining {money(monthlyGoalRemaining)}
-          </div>
-          <input
-            type="number"
-            min="0"
-            step="50"
-            value={monthlyGoal}
-            onChange={(e) => setMonthlyGoal(Math.max(0, Number(e.target.value) || 0))}
-            placeholder="Goal"
-            style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
-          />
-        </div>
-        <div style={{ height: 10, borderRadius: 999, background: "var(--surface-2)", overflow: "hidden" }}>
-          <div style={{ width: `${monthlyGoalProgressPct}%`, height: "100%", background: "var(--neon)" }} />
+      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)", display: "grid", gap: 6 }}>
+            <div style={{ fontSize: 12, color: "var(--muted)" }}>{previousMonthTitle}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Earnings</div>
+            <div style={{ fontWeight: 700 }}>{money(lastMonthReport?.totalIncome ?? 0)}</div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Hours</div>
+            <div style={{ fontWeight: 700 }}>{(lastMonthReport?.totalHours ?? 0).toFixed(1)} hrs</div>
+          </article>
+
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 8, border: "1px solid var(--line)", display: "grid", gap: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div style={{ fontSize: 12, color: "var(--muted)" }}>Monthly Goal</div>
+              <span style={{ color: "var(--muted)", fontSize: 11 }}>{monthlyGoalProgressPct.toFixed(0)}%</span>
+            </div>
+            <input
+              type="number"
+              min="0"
+              step="50"
+              value={monthlyGoal}
+              onChange={(e) => setMonthlyGoal(Math.max(0, Number(e.target.value) || 0))}
+              placeholder="Goal"
+              style={{ padding: "8px 9px", borderRadius: 8, border: "1px solid var(--line)", background: "#0f1726", color: "var(--text)" }}
+            />
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>
+              {money(currentMonthEarnings)} / {money(monthlyGoal)}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--muted)" }}>Remaining {money(monthlyGoalRemaining)}</div>
+            <div style={{ height: 8, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
+              <div style={{ width: `${monthlyGoalProgressPct}%`, height: "100%", background: "var(--neon)" }} />
+            </div>
+          </article>
         </div>
       </section>
 
