@@ -568,26 +568,6 @@ export default function CalendarPage() {
           </article>
         </div>
 
-        {showOnboarding ? (
-          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)", display: "grid", gap: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <strong>Quick Start</strong>
-              <button
-                type="button"
-                onClick={dismissOnboarding}
-                style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", padding: "5px 8px", color: "var(--text)" }}
-              >
-                Dismiss
-              </button>
-            </div>
-            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log shift details.</div>
-          </article>
-        ) : null}
-      </section>
-
-      {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
-
-      <section style={{ border: "1px solid rgba(255, 216, 77, 0.72)", borderRadius: 12, background: "var(--surface)", padding: 8 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8 }}>
           <article style={{ minWidth: 0, background: "var(--surface-2)", borderRadius: 10, padding: 7, border: "1px solid var(--line)", display: "grid", gap: 4 }}>
             <div style={{ fontSize: 11, color: "var(--muted)" }}>{previousMonthTitle}</div>
@@ -628,7 +608,25 @@ export default function CalendarPage() {
             <div style={{ fontSize: 11, color: "var(--muted)" }}>Remaining {money(monthlyGoalRemaining)}</div>
           </article>
         </div>
+
+        {showOnboarding ? (
+          <article style={{ background: "var(--surface-2)", borderRadius: 10, padding: 10, border: "1px solid var(--line)", display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <strong>Quick Start</strong>
+              <button
+                type="button"
+                onClick={dismissOnboarding}
+                style={{ border: "1px solid var(--line)", borderRadius: 8, background: "var(--surface)", padding: "5px 8px", color: "var(--text)" }}
+              >
+                Dismiss
+              </button>
+            </div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>Tap a date to log shift details.</div>
+          </article>
+        ) : null}
       </section>
+
+      {error ? <section style={{ color: "var(--danger)" }}>{error}</section> : null}
 
       {loading ? (
         <section style={{ color: "var(--muted)" }}>Loading calendar...</section>
